@@ -1,0 +1,453 @@
+rm(list = ls())
+
+# --- 加载依赖库 ---
+library(ggplot2)
+library(reshape2)
+library(deSolve)
+library(Matrix)
+library(pracma)
+library(patchwork)
+library(ADSIHT) 
+library(MASS)
+# --- 辅助函数：计算指标 ---
+calculate_metrics <- function(predicted, true) {
+  predicted <- as.integer(predicted)
+  true      <- as.integer(true)
+  
+  TP <- sum(predicted == 1 & true == 1)
+  FP <- sum(predicted == 1 & true == 0)
+  TN <- sum(predicted == 0 & true == 0)
+  FN <- sum(predicted == 0 & true == 1)
+  
+  TPR <- ifelse((TP + FN) == 0, 0, TP / (TP + FN))
+  FPR <- ifelse((FP + TN) == 0, 0, FP / (FP + TN))
+  
+  denominator <- sqrt(as.numeric(TP + FP) * (TP + FN) * (TN + FP) * (TN + FN))
+  MCC <- ifelse(denominator == 0, 0, (TP * TN - FP * FN) / denominator)
+  
+  list(TPR = TPR, FPR = FPR, MCC = MCC)
+}
+
+#adj_matrix = adj_main_est
+calculate_network_metrics <- function(adj_matrix) {
+  require(igraph)
+  g <- graph_from_adjacency_matrix(t(adj_matrix), mode = "directed")
+
+  # 1. 节点级指标 (Node-level Metrics)
+  node_metrics <- data.frame(
+    Node = rownames(adj_matrix),
+    In_Degree = degree(g, mode = "in"),       # 多少个变量影响它
+    Out_Degree = degree(g, mode = "out"),     # 它影响了多少个变量
+    Total_Degree = degree(g, mode = "all"),   # 总连接数
+    Betweenness = betweenness(g, directed = TRUE, normalized = TRUE), # 桥梁作用
+    Closeness = closeness(g, mode = "out", normalized = TRUE),        # 影响扩散速度
+    Eigen_Centrality = eigen_centrality(g, directed = TRUE)$vector    # 核心程度
+  )
+  
+  # 按出度排序，方便查看主要驱动因子
+  node_metrics <- node_metrics[order(node_metrics$Out_Degree, decreasing = TRUE), ]
+  
+  # 2. 网络级指标 (Network-level Metrics)
+  global_metrics <- list(
+    Density = edge_density(g),                # 网络密度
+    Reciprocity = reciprocity(g),             # 互惠性 (双向连接的比例)
+    Transitivity = transitivity(g, type = "global"), # 聚类系数
+    Diameter = diameter(g, directed = TRUE),  # 网络直径
+    Average_Path_Length = mean_distance(g, directed = TRUE) # 平均路径长度
+  )
+  
+  return(list(nodes = node_metrics, global = global_metrics, graph = g))
+}
+
+# --- 辅助函数：多项式基 ---
+poly_basis_1d <- function(x, name = NULL, degree = 3) {
+  n <- length(x)
+  X <- matrix(NA, n, degree)
+  for (d in 1:degree) {
+    X[, d] <- x^d
+  }
+  
+  base_name <- if (!is.null(name)) name else "x"
+  colnames(X) <- paste0(base_name, "_", 1:degree)
+  
+  return(X)
+}
+
+# --- 数据生成函数 ---
+sim_data <- function(n=100, snr = 10,interaction = FALSE){
+  #n = 100;snr = 10;interaction =FALSE
+  
+  times <- seq(0.01, 2.5, length = n)
+  psi <- function(x) {
+    c(x^2,x^3)
+  }
+  basisf = function(x){
+    cbind(x^2,x^3)
+  }
+  
+  n_order= 2
+  p=10
+  
+  thetas<-matrix(0,n_order*p,p)
+  
+  
+  thetas[4, 1]<- 2#2对1
+  thetas[5, 1]<- 3 #3对1 
+  
+  
+  thetas[2, 2]<- -3 #1对2
+  thetas[3, 2]<- 0.1  #2对2
+  
+  thetas[8, 3]<- 2 #4对3
+  thetas[12, 3]<- 2 #6对3
+  
+  thetas[6, 4]<- -2 #3对4
+  
+  thetas[4, 5]<- -2 #2对6
+  thetas[12, 5]<- 5 #6对5
+  
+  thetas[10, 6]<- -5 #5对6
+  
+  thetas[1, 7]<- 2 #1对7
+  thetas[3, 7]<- -1 #2对7
+  
+  thetas[2, 8]<- 2 #1对8
+  thetas[6, 8]<- -1 #3对8
+  
+  thetas[8, 9] <- -2 #4对9
+  thetas[10, 9] <- 1 #5对9
+  
+  thetas[12, 10] <- 2 #6对10
+  thetas[18, 10] <- -0.5 #9对10
+  
+  ####只考虑存在1组互作
+  #对1加入互作(2与3)
+  #对3加入互作(4与6)
+  #对5加入互作(2与6)
+  #对7加入互作(1与2)
+  #对9加入互作(4与5)
+  
+  s = c(1,3,5,7,9)
+  
+  fij <- function(xi,xj){xi*xj}
+  thetas_ij = matrix(0,choose(p,2),p)
+  name_ij = apply(combn(p,2), 2, function(xi) paste0(as.character(xi),collapse = "*"))
+  
+  
+  tmp = lapply(s,function(xi) split(thetas[,xi], ceiling(seq_along(thetas[,xi])/2)))
+  xij = lapply(tmp, function(xi) which(sapply(xi,sum)!=0))
+  
+  #不考虑自身与其它互作
+  ignore = FALSE
+  if (ignore) {
+    xij = lapply(1:length(s), function(xi)  xij[[xi]][-s[xi]])
+    nn =  match(sapply(xij,paste0,collapse = "*"),name_ij) #互作的位置
+  } else{
+    nn =  match(sapply(xij,paste0,collapse = "*"),name_ij) #互作的位置
+  }
+  
+  
+  
+  thetas_ij[nn[1],s[1]] = 0.1 
+  thetas_ij[nn[2],s[2]] = 0.2 
+  thetas_ij[nn[3],s[3]] = 0.6
+  thetas_ij[nn[4],s[4]] = 2
+  thetas_ij[nn[5],s[5]] = 0.5
+  
+  
+  if (interaction == FALSE) {
+    thetas_ij[thetas_ij!=0] = 0
+  } else{
+    next
+  }
+  
+  mod1 <- function(Time, State, Pars) {
+    with(as.list(c(State, Pars)), {
+      thetas = Pars$thetas
+      thetas_ij = Pars$thetas_ij
+      
+      
+      State2 <- as.vector(sapply(State, psi))
+      main = State2%*%thetas
+      interaction_2way = combn(State, 2, FUN = function(x) prod(x))%*%thetas_ij
+      
+      dx = main + interaction_2way
+      
+      return(list(dx))
+    })
+  }
+  State <- c(0.8,-0.8,0.7,-0.7,-0.6,0.6, 0.5,-0.5,0.4,-0.4)
+  parms = list(thetas = thetas, thetas_ij = thetas_ij)
+  out <- ode(y = State, times = times,
+             func = mod1, parms = parms,
+             method = "lsoda")[,-1]
+  
+  out_df <- as.data.frame(out)
+  out_df$Time <- times
+  
+  
+  pp = ggplot(melt(out_df, id.vars = "Time"), aes(x = Time, y = value, color = variable)) +
+    geom_line() +
+    theme_minimal() +
+    labs(title = "Simulated ODE System", x = "Time", y = "State Variables") +
+    theme(legend.position = "right")
+  
+  
+  
+  tmp = Reduce(cbind,lapply(1:p,function(xi) basisf(out[,xi]))) #State
+  dX_main = tmp %*% thetas
+  
+  m = apply(combn(p, 2), 2, function(idx){
+    out[, idx[1]] * out[, idx[2]]
+  })
+  
+  dX_interaction = m%*%thetas_ij
+  
+  
+  dX = dX_main + dX_interaction
+  
+  
+  noise_sd <- sqrt(apply(out, 2, var) / snr)
+  
+  out2 = out + matrix(rnorm(n * p, sd = rep(noise_sd, each=n)), nrow = n, ncol = p)
+  
+  
+  #构建邻接矩阵,【行对列影响】
+  adj_main <- matrix(0, p, p)
+  tmp = lapply(1:p,function(xi) split(thetas[,xi], ceiling(seq_along(thetas[,xi])/2)))
+  tmp2 = lapply(tmp, function(xi) which(sapply(xi,sum)!=0))
+  
+  
+  for (i in 1:p) {
+    adj_main[i,tmp2[[i]]] <- 1
+  }
+  colnames(adj_main) = rownames(adj_main) = paste0("x",1:p)
+  
+  
+  
+  adj_inter <- t(matrix(0,choose(p,2),p))
+  colnames(adj_inter) = name_ij
+  adj_inter[which(t(thetas_ij)!=0)] = 1
+  
+  
+  return(list(p = p, thetas = thetas, X_real = out, times = times,
+              dX_main = dX_main, dX_interaction = dX_interaction,
+              psi = basisf, dX_real = dX, Y = out2, adj_main = adj_main,
+              adj_inter = adj_inter,fig=pp))
+}
+
+
+#Y = Y;times = times;M = 5
+MTODE <- function(Y, times, M = 5) {
+  if( is.null(colnames(Y))){
+    colnames(Y) = paste0("x",1:ncol(Y))
+  }
+  
+  
+  n <- length(times)
+  p <- ncol(Y)
+  
+  # 归一化时间
+  times_norm <- (times - min(times)) / (max(times) - min(times))
+  
+  # 1. 预平滑 (Smoothing Splines)
+  fit_spline <- lapply(1:p, function(xi) smooth.spline(times_norm, as.numeric(Y[, xi])))
+  x_smooth <- sapply(1:p, function(xi) predict(fit_spline[[xi]], x = times_norm)$y)
+  colnames(x_smooth) <- colnames(Y)
+  
+  # 2. 构建基函数并积分
+  # 构造多项式基
+  phi_list <- lapply(1:p, function(xi) {
+    poly_basis_1d(x_smooth[, xi], name = colnames(Y)[xi], degree = M)
+  })
+  phi <- Reduce(cbind, phi_list)
+  
+  # 对基进行积分 (Trapezoidal integration)
+  phi_int <- apply(phi, 2, function(col) cumtrapz(times_norm, col))
+  
+  # --- 定义组构造函数 ---
+  construct_group <- function(j, phi_int_data) {
+    s0 <- p * (j - 1) + 1
+    group <- rep(s0:(s0 + p - 1), each = M)
+    group0 <- min(group)
+    group <- sort(c(group0, group))
+    group_levels <- unique(group)
+    
+    phi1_int_local <- cbind(times_norm, phi_int_data)
+    group_idx_list <- split(seq_len(ncol(phi1_int_local)), group)
+    
+    qr_list <- lapply(group_levels, function(g) {
+      cols <- group_idx_list[[as.character(g)]]
+      Xg <- phi1_int_local[, cols, drop = FALSE]
+      mXg <- colMeans(Xg)
+      Xg_centered <- sweep(Xg, 2, mXg, FUN = "-")
+      
+      # 若秩不足则加微小噪声
+      if (qr(Xg_centered)$rank < ncol(Xg_centered)) {
+        Xg_centered <- Xg_centered + matrix(rnorm(length(Xg_centered), sd = 1e-12),
+                                            nrow = nrow(Xg_centered), ncol = ncol(Xg_centered))
+      }
+      qr_g <- qr(Xg_centered)
+      list(Q = qr.Q(qr_g, complete = FALSE), R = qr.R(qr_g), mXg = mXg, src_cols = cols)
+    })
+    
+    Q_all <- do.call(cbind, lapply(qr_list, `[[`, "Q"))
+    
+    list(
+      group = group,
+      group_idx_list = group_idx_list,
+      phi_int = phi_int_data,
+      Q_all = Q_all,
+      R_list = lapply(qr_list, `[[`, "R"),
+      mXg_list = lapply(qr_list, `[[`, "mXg"),
+      src_cols_list = lapply(qr_list, `[[`, "src_cols")
+    )
+  }
+  
+  # 3. 构造大设计矩阵 (Block Diagonal Q)
+  Q_info <- lapply(1:p, construct_group, phi_int_data = phi_int)
+  Q_blocks <- lapply(Q_info, `[[`, "Q_all")
+  X_design <- as.matrix(bdiag(Q_blocks))
+  
+  # 4. 数据标准化与回归
+  y_scaled <- scale(Y)
+  Y_all <- matrix(as.vector(y_scaled), ncol = 1)
+  
+  groups_vec <- unlist(lapply(Q_info, `[[`, "group"))
+  
+  # ADSIHT 回归
+ # fit <- ADSIHT(X_design, Y_all, group = groups_vec)
+  
+  fit <- ADSIHT(X_design, Y_all, group = groups_vec)
+  
+  
+  best_idx <- which.min(fit$ic)
+  beta_std_Q_vec <- fit$beta[, best_idx]
+  
+  #fit <- cv.sparsegl(X_design, Y_all, group = groups_vec) #sparsegl
+  #fit <- cv.grpreg(X_design, Y_all, group = groups_vec)   #grpreg
+  #beta_std_Q_vec <- as.vector(coef(fit, s = fit$lambda.1se)[-1])
+  
+  # 5. 恢复原始 Beta
+  recover_beta <- function(beta_std_Q_vec, Q_info, y_s) {
+    cols_per_j <- sapply(Q_info, function(z) ncol(z$Q_all))
+    cum_cols <- c(0, cumsum(cols_per_j))
+    sY <- attr(y_s, "scaled:scale")
+    mY <- attr(y_s, "scaled:center")
+    
+    res_list <- lapply(seq_along(Q_info), function(j) {
+      idx_range <- (cum_cols[j] + 1):cum_cols[j + 1]
+      bQj_all <- beta_std_Q_vec[idx_range]
+      
+      info <- Q_info[[j]]
+      rcols_vec <- sapply(info$R_list, ncol)
+      bQg_list <- split(bQj_all, rep(seq_along(rcols_vec), rcols_vec))
+      
+      beta_Xj_full <- numeric(ncol(info$phi_int))
+      mX_full <- numeric(ncol(info$phi_int))
+      
+      Map(function(Rg, bQg, src_cols, mXg) {
+        # 注意: backsolve 结果写入父环境变量
+        beta_Xg <- backsolve(Rg, bQg)
+        beta_Xj_full[src_cols] <<- beta_Xg
+        mX_full[src_cols] <<- mXg
+      }, info$R_list, bQg_list, info$src_cols_list, info$mXg_list)
+      
+      beta_orig_j <- sY[j] * beta_Xj_full
+      intercept_orig_j <- mY[j] - sY[j] * sum(mX_full * beta_Xj_full)
+      list(beta = beta_orig_j, intercept = intercept_orig_j)
+    })
+    
+    list(
+      B_est = lapply(res_list, `[[`, "beta"),
+      intercept = sapply(res_list, `[[`, "intercept")
+    )
+  }
+  
+  beta_recovered <- recover_beta(beta_std_Q_vec, Q_info, y_scaled)
+  beta_orig <- Reduce(cbind, beta_recovered$B_est)
+  
+  beta_hat <- beta_orig[-1, ]
+  beta_all <- rbind(beta_recovered$intercept, beta_orig)
+  
+  # 6. 计算估计值与绘图
+  phi_all <- cbind(1, as.matrix(bdiag(cbind(times_norm, phi_int))))
+  y_est <- phi_all %*% beta_all
+  
+  y_est_df <- melt(data.frame(times = times, y_est), id.vars = 'times')
+  y_obs_df <- melt(data.frame(times = times, Y), id.vars = 'times')
+  
+  pp <- ggplot() + 
+    geom_point(data = y_obs_df, aes(times, value, group = variable)) +
+    geom_line(data = y_est_df, aes(times, value, group = variable), color = 'red') +
+    facet_wrap(~variable) + 
+    theme_bw()
+  
+  # 7. 计算组贡献 (f_group_est)
+  f_group <- function(jj) {
+    betam <- beta_all[-c(1:2), jj]
+    est <- matrix(0, nrow = n, ncol = p)
+    
+    group_idx_list <- split(seq_len(ncol(phi)), rep(1:p, each = M))
+    
+    for (g in seq_len(p)) {
+      est[, g] <- phi_int[, group_idx_list[[g]], drop = FALSE] %*% betam[group_idx_list[[g]]]
+    }
+    
+    # 加上截距项和时间线性项
+    est[, jj] <- est[, jj] + beta_all[2, jj] * times_norm
+    
+    colnames(est) <- paste0("x", 1:p)
+    return(est)
+  }
+  
+  f_group_est <- lapply(1:p, f_group)
+  
+  adj_main_est <- matrix(0, nrow = p, ncol = p)
+  for (i in 1:p) {
+    # 只要该组估计值总和不全为0，即认为存在边
+    adj_main_est[i, which(colSums(f_group_est[[i]]) != 0)] <- 1
+  }
+  rownames(adj_main_est) = colnames(Y)
+  colnames(adj_main_est) = colnames(Y)
+  
+  
+  
+  return(list(beta_all = beta_all,
+              f_group_est = f_group_est, 
+              adj_est = adj_main_est,
+              fig = pp))
+}
+
+
+# # --- 主仿真循环 ---
+n_sim <- 30
+results_main <- matrix(NA, nrow = n_sim, ncol = 3) # TPR, FPR, MCC
+
+
+
+for (sim_i in 1:n_sim) {
+  cat("Simulation:", sim_i, "\n")
+
+  dat <- sim_data(n = 50, snr = 30)
+
+  # 拟合模型
+  res <- MTODE(Y = dat$Y, times = dat$times, M = 5)
+
+  adj_main_est = res$adj_est
+  # 计算指标
+  metrics_main <- calculate_metrics(adj_main_est, dat$adj_main)
+  results_main[sim_i, ] <- c(metrics_main$TPR, metrics_main$FPR, metrics_main$MCC)
+}
+
+# --- 汇总结果 ---
+summary_main <- data.frame(
+  Mean = apply(results_main, 2, mean),
+  SD = apply(results_main, 2, sd),
+  row.names = c("TPR", "FPR", "MCC")
+)
+
+cat("=== 主效应 (Main) ===\n")
+print(summary_main)
+
+
