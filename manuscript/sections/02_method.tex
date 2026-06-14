@@ -1,0 +1,78 @@
+\section{Method}
+\label{sec:method}
+
+% Mirrors CLAUDE.md §1–§7. Fill in prose; equations below are the skeleton.
+
+\subsection{Sparse additive ODE model}
+\label{sec:method:model}
+For a community of $p$ species with abundances $\xv(t)=(x_1,\dots,x_p)^\top$,
+\begin{equation}
+  \frac{dx_j(t)}{dt} = \mu_j + \sum_{i=1}^{p} \fji\!\big(x_i(t)\big),
+  \qquad j=1,\dots,p,
+  \label{eq:ode}
+\end{equation}
+where $\mu_j$ is the intrinsic growth/death rate and $\fji(\cdot)$ the unknown
+univariate interaction of species $i$ on $j$. The network $G=(V,E)$ has an edge
+$(j\leftarrow i)$ iff $\fji\not\equiv 0$.
+
+\begin{assumption}[Identifiability, \citealp{meister2013pss}]
+\label{ass:zero}
+$\fji(0)=0$ for all $i,j$.
+\end{assumption}
+
+\subsection{Perturbed steady-state design}
+\label{sec:method:pss}
+Under external perturbation $u_j$ the dynamics become
+$\dot{x}_j = \mu_j + \sum_i \fji(x_i) + u_j$; at the $k$-th steady state
+$\xv^{(k)*}$,
+\begin{equation}
+  \mu_j + \sum_{i=1}^{p} \fji\!\big(x_i^{(k)*}\big) + u_j^{(k)} = 0 .
+  \label{eq:ss}
+\end{equation}
+The response for target $j$ is $-u_j^{(k)}$; no numerical differentiation is needed.
+
+\subsection{Nonparametric basis expansion}
+\label{sec:method:basis}
+\begin{equation}
+  \fji(a) = \psiv(a)^\top \thetav_{ji} + \delta_{ji}(a),
+  \qquad \thetav_{ji}\in\R^{M},
+  \label{eq:basis}
+\end{equation}
+with a no-intercept basis ($\psi_m(0)=0$) so \Cref{ass:zero} holds.
+% TODO: state B-spline choice bs(x, df=M, intercept=FALSE).
+
+\subsection{Node-wise design matrix and centering}
+\label{sec:method:design}
+Stacking \eqref{eq:ss} over $N$ conditions gives, per node $j$,
+\begin{equation}
+  \Psib\,\thetav_j + \mu_j \mathbf{1} = -\uv_{\cdot j} + \bm{\varepsilon}_j,
+  \qquad \Psib\in\R^{N\times pM}.
+  \label{eq:linear}
+\end{equation}
+Column centering removes the intercept,
+$\Psic\,\thetav_j = -\uv_{c,j} + \bm{\varepsilon}_j$, with recovery
+$\hat\mu_j = -\bar u_j - \bar{\Psib}\,\hat\thetav_j$.
+
+\subsection{Double-sparse inference via \adsiht{}}
+\label{sec:method:adsiht}
+% Group-wise sparsity (S1) + within-group sparsity (S2).
+\begin{equation}
+  \min_{\thetav_j}\ \frac{1}{2N}\norm{\Psic\,\thetav_j + \uv_{c,j}}_2^2
+  \quad\text{s.t.}\quad
+  \sum_{i}\Ind(\norm{\thetav_{ji,\cdot}}_2\neq 0)\le s,\;
+  \sum_{m}\Ind(\theta_{jim}\neq 0)\le s_0 .
+  \label{eq:double}
+\end{equation}
+% TODO: describe ADSIHT, group=rep(1:p, each=M), ic.type="dsic".
+
+\subsection{Jacobian extraction and network estimation}
+\label{sec:method:jacobian}
+At the wild-type steady state,
+\begin{equation}
+  J_{ji} = \psiv'(x_i^{\wt})^\top \hat\thetav_{ji},
+  \qquad
+  \hat A_{ji} = J_{ji}\ (i\neq j),\quad \hat\gamma_j = -J_{jj},
+  \label{eq:jacobian}
+\end{equation}
+with edge set $\hat E=\{(j\leftarrow i):\norm{\hat\thetav_{ji,\cdot}}_2\ge\tau\}$;
+$\hat A_{ji}>0$ promotion, $\hat A_{ji}<0$ inhibition.

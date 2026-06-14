@@ -1,0 +1,38 @@
+%==============================================================================
+% PSS-Net manuscript — main file
+%   稀疏加性非参 ODE 模型用于微生物互作网络重构
+%   Compile:  see Makefile  (latexmk -pdf main.tex)
+%==============================================================================
+\documentclass[11pt]{article}
+
+\input{preamble}
+
+\title{Sparse Additive Nonparametric ODE Models for\\
+       Microbial Interaction Network Reconstruction\\
+       from Perturbed Steady-State Data}
+
+\author{Author Names \\ \textit{Affiliation} \\ \texttt{email}} % TODO
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+\input{sections/00_abstract}
+\end{abstract}
+
+\input{sections/01_introduction}
+\input{sections/02_method}
+\input{sections/03_simulation}
+\input{sections/04_realdata}
+\input{sections/05_discussion}
+
+%------------------------------------------------------------------ references
+\bibliographystyle{plainnat}
+\bibliography{../ref/references}
+
+\appendix
+\input{sections/A1_appendix}
+
+\end{document}

@@ -271,3 +271,49 @@ $$\hat{E} = \left\{(j \leftarrow i) : \|\hat{\theta}_{ji,\cdot}\|_2 \geq \tau\ri
 - Barzel, B. & Barabási, A.-L. (2013). *Universality in network dynamics.*
 - `ref/Learning a nonlinear dynamical system model of gene regulation- A perturbed steady-state approach.pdf`
 - `ref/ODE_solve.md`
+
+---
+
+## 9. 评估指标与基准
+
+网络重构按**边的二分类**评估（边存在/不存在），统一报告以下指标，结果写入 `results/`：
+
+- **混淆矩阵**：TP / FP / FN / TN（基于 $\|\hat\theta_{ji}\|_2 \ge \tau$ 的边判定）
+- **Precision / Recall / F1**
+- **MCC**（Matthews 相关系数，主指标；类别不平衡下比 F1 更稳健）
+- **系数误差**：CoefL2（$\|\hat\theta - \theta^*\|_2$）
+- **Jacobian 误差**：JacRMSE（$\hat J$ 与真值 $J^*$ 的 RMSE）
+
+每个实验设置须**多 seed 重复**（当前 10 次）后报告均值±标准差。基准对照至少包含 ADSIHT（首选）vs Group Lasso（`grpreg::grLasso`，次选），见 `sim_script/pss_net_compare.R`。
+
+## 10. 实验结论（持续更新）
+
+- **预平滑有害**：B 样条预平滑在多物种系统中显著降低 MCC（0.91→0.25），PSS 推断直接使用含噪观测（详见 §6）。
+- **ADSIHT 优于 Group Lasso**：在线性 GLV（v3）无平滑方案下，ADSIHT 平均 MCC ≈ 0.91，grLasso ≈ 0.55；FP 数显著更低（双稀疏抑制误报）。
+- **非线性互作**（v1，含 $x^2$ 项）仍是难点：当前单项式 M=2 基下 MCC 偏低，待改进基函数与扰动设计。
+
+---
+
+## TODO List
+
+### A. 细化模拟（sim_script/）
+- [ ] **基函数对比**：单项式 vs B 样条（`bs`, `intercept=FALSE`）vs Legendre，在相同非线性互作下比较 MCC/JacRMSE。
+- [ ] **非线性互作恢复**：改进 v1 场景（饱和型 Monod、Hill 函数等生态常见形式），评估各基函数的逼近能力。
+- [ ] **维度/样本量扫描**：系统改变 $(p, N, s, \sigma)$，绘制 MCC 关于 $N/p$、噪声 $\sigma$ 的相图（ggplot2）。
+- [ ] **扰动设计敏感性**：单物种 vs 多物种联合扰动、连续 vs 离散扰动幅度对可识别性的影响。
+- [ ] **ADSIHT 超参**：`kappa`、组大小 $M$、`ic.type` 的稳健性测试。
+- [ ] **稳健性**：稳态未完全收敛、组成型数据（CLR 归一化）、缺失条件下的表现。
+
+### B. 实际数据分析（analysis_script/）
+- [ ] 接入首选数据集 **Clark 2021**（Zenodo，N=1850，26 物种）：下载、CLR/参考菌归一化、构建 $(X, U)$。
+- [ ] 接入 **Venturelli 2018**（OD600 校正，近绝对丰度，12 物种）作为可解释性强的对照。
+- [ ] 编写统一的真实数据 PSS 推断 pipeline（数据 → 设计矩阵 → ADSIHT → Jacobian → 网络）。
+- [ ] 网络可视化脚本（igraph + ggplot2，遵循配色规范），输出推断互作网络图。
+- [ ] 与已发表 gLV/互作结果横向比较（Stein 2013、MDSINE2 作为基准）。
+
+### C. 论文撰写（manuscript/，待建）
+- [ ] 方法部分：整理 §1–§7 的公式推导与可识别性论证。
+- [ ] 模拟实验部分：汇总 A 的相图与基准表。
+- [ ] 实际数据部分：汇总 B 的网络重构结果与生态学解读。
+- [ ] 相关工作与贡献定位（相对 SINDy、gLV 回归、Henderson & Michailidis 的改进）。
+- [ ] 整理 `ref/references.bib`，统一引用格式。

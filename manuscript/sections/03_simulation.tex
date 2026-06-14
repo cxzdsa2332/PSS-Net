@@ -1,0 +1,42 @@
+\section{Simulation Studies}
+\label{sec:simulation}
+
+\subsection{Experimental setup}
+\label{sec:sim:setup}
+% TODO: describe simulated GLV / nonlinear ODEs (sim_script/pss_net_*.R),
+% perturbation conditions, noise levels, basis choices.
+% Evaluation metrics: TP/FP/FN/TN, Precision/Recall/F1, MCC, CoefL2, JacRMSE.
+% Repeated over 10 seeds; report mean $\pm$ sd.
+
+\subsection{Method comparison: \adsiht{} vs.\ Group Lasso}
+\label{sec:sim:compare}
+% TODO: summarize results/mcc_comparison.csv.
+\begin{table}[t]
+  \centering
+  \caption{Network recovery on linear GLV (8 species, 10 seeds).
+           Results from \texttt{results/mcc\_comparison.csv}.}
+  \label{tab:mcc}
+  \begin{tabular}{llccc}
+    \toprule
+    Setting & Method & Precision & Recall & MCC \\
+    \midrule
+    no-smooth   & \adsiht{}  & TODO & TODO & TODO \\
+    no-smooth   & grLasso    & TODO & TODO & TODO \\
+    pre-smooth  & \adsiht{}  & TODO & TODO & TODO \\
+    pre-smooth  & grLasso    & TODO & TODO & TODO \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\subsection{Effect of pre-smoothing}
+\label{sec:sim:smoothing}
+% TODO: document the finding that B-spline pre-smoothing degrades MCC
+% in multi-species systems (CLAUDE.md §6).
+
+\subsection{Sensitivity to $(p, N, s, \sigma)$ and basis choice}
+\label{sec:sim:sensitivity}
+% TODO: phase diagrams of MCC vs N/p and noise; monomial vs B-spline vs Legendre.
+% \begin{figure}[t]\centering
+%   \includegraphics[width=.7\linewidth]{figures/phase_mcc.pdf}
+%   \caption{TODO}\label{fig:phase}
+% \end{figure}

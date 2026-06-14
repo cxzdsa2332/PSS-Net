@@ -2,3 +2,15 @@
 .Rhistory
 .RData
 .Rproj.user
+
+# LaTeX build artifacts (manuscript/)
+*.aux
+*.bbl
+*.blg
+*.fdb_latexmk
+*.fls
+*.log
+*.out
+*.synctex.gz
+*.toc
+manuscript/main.pdf

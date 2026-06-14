@@ -1,0 +1,58 @@
+%==============================================================================
+% preamble.tex — packages, macros, notation for PSS-Net manuscript
+%==============================================================================
+
+% ---- encoding & fonts ----
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+
+% ---- math ----
+\usepackage{amsmath,amssymb,amsthm,bm}
+\usepackage{mathtools}
+
+% ---- graphics & tables ----
+\usepackage{graphicx}
+\graphicspath{{figures/}{../results/}}
+\usepackage{booktabs}
+\usepackage{subcaption}
+\usepackage{xcolor}
+
+% ---- layout & references ----
+\usepackage[margin=1in]{geometry}
+\usepackage[round,authoryear]{natbib}
+\usepackage{hyperref}
+\hypersetup{colorlinks=true, linkcolor=blue, citecolor=blue, urlcolor=blue}
+\usepackage{cleveref}
+
+% ---- theorem environments ----
+\theoremstyle{plain}
+\newtheorem{theorem}{Theorem}
+\newtheorem{proposition}{Proposition}
+\newtheorem{assumption}{Assumption}
+\theoremstyle{definition}
+\newtheorem{definition}{Definition}
+
+%==============================================================================
+% Notation macros (keep consistent with CLAUDE.md)
+%==============================================================================
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\E}{\mathbb{E}}
+\newcommand{\Ind}{\mathbb{I}}
+\newcommand{\norm}[1]{\left\lVert#1\right\rVert}
+\newcommand{\abs}[1]{\left\lvert#1\right\rvert}
+
+\newcommand{\xv}{\bm{x}}                 % state vector
+\newcommand{\uv}{\bm{u}}                 % perturbation vector
+\newcommand{\fji}{f_{ji}}                % interaction function i -> j
+\newcommand{\psiv}{\bm{\psi}}            % basis vector
+\newcommand{\thetav}{\bm{\theta}}        % coefficient vector
+\newcommand{\Psib}{\bm{\Psi}}            % design matrix
+\newcommand{\Psic}{\bm{\Psi}_{c}}        % centered design matrix
+\newcommand{\Jac}{\bm{J}}                % Jacobian
+\newcommand{\Amat}{\bm{A}}               % interaction strength matrix
+\newcommand{\wt}{\mathrm{wt}}            % wild-type superscript
+
+% ADSIHT / methods shorthands
+\newcommand{\adsiht}{\textsc{ADSIHT}}
+\newcommand{\pss}{\textsc{PSS}}
