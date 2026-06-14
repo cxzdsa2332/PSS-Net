@@ -3,6 +3,9 @@
 .RData
 .Rproj.user
 
+# Generated analysis outputs
+results/
+
 # LaTeX build artifacts (manuscript/)
 *.aux
 *.bbl

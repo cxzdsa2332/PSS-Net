@@ -1,6 +1,8 @@
 # manuscript/
 
-PSS-Net 论文 LaTeX 工程。
+PSS-Net LaTeX manuscript for perturbed steady-state inference in sparse nonlinear
+dynamical systems.  Ecological and microbiome systems are treated as important
+applications and simulation benchmarks, not as the only project scope.
 
 ## 编译
 
@@ -11,7 +13,13 @@ make clean    # 清理中间文件
 make purge    # 连同 main.pdf 一起删除
 ```
 
-需要本地有 TeX 发行版（TeX Live / MacTeX）和 `latexmk`。
+`make` requires a local TeX distribution and `latexmk`.  In the current local
+environment, `tectonic` is available and can be used directly:
+
+```bash
+cd manuscript
+tectonic main.tex
+```
 
 ## 结构
 
@@ -23,13 +31,15 @@ manuscript/
 ├── sections/
 │   ├── 00_abstract.tex
 │   ├── 01_introduction.tex
-│   ├── 02_method.tex     # 对应 CLAUDE.md §1–§7
-│   ├── 03_simulation.tex # 模拟实验（results/mcc_comparison.csv）
+│   ├── 02_method.tex     # General method for complex systems
+│   ├── 03_simulation.tex # Simulation benchmarks, including gLV
 │   ├── 04_realdata.tex   # 实际数据（data/datasets.md）
 │   ├── 05_discussion.tex
 │   └── A1_appendix.tex
-└── figures/              # 图（建议从 R 脚本输出 PDF 到此）
+└── figures/              # Manuscript-specific static figures if needed
 ```
 
 参考文献复用根目录 `../ref/references.bib`（`\bibliography{../ref/references}`）。
+Generated analysis figures are written to `../results/figure/` by
+`analysis_script/` and are not tracked by Git while `results/` is ignored.
 正文中以 TODO 注释标出各部分待撰写内容。
