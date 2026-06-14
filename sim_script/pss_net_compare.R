@@ -2,8 +2,8 @@
 # pss_net_compare.R  —  PSS-Net: 10-run MCC benchmark: v3 (no smooth) vs v1 (nonlinear)
 #
 # Input:   none (generates its own simulated data per seed)
-# Output:  results/mcc_comparison.csv   — per-run metrics
-#          results/mcc_comparison.txt   — summary table
+# Output:  results/sim_results/mcc_comparison.csv  — per-run metrics
+# Summary: analysis_script/summarize_mcc_comparison.R
 ################################################################################
 
 rm(list = ls())
@@ -225,148 +225,7 @@ df_all <- rbind(df_v3, df_v1)
 rownames(df_all) <- NULL
 
 # ── Save CSV ──────────────────────────────────────────────────────────────────
-dir.create("results", showWarnings = FALSE)
-write.csv(df_all, "results/mcc_comparison.csv", row.names = FALSE)
-cat("\nSaved: results/mcc_comparison.csv\n")
-
-# ── Summary statistics ────────────────────────────────────────────────────────
-summary_tab <- function(df, ver, meth) {
-  sub <- df[df$version == ver & df$method == meth, ]
-  c(version = ver, method = meth,
-    MCC_mean  = round(mean(sub$MCC),  3),
-    MCC_sd    = round(sd(sub$MCC),    3),
-    MCC_min   = round(min(sub$MCC),   3),
-    MCC_max   = round(max(sub$MCC),   3),
-    F1_mean   = round(mean(sub$F1),   3),
-    Pr_mean   = round(mean(sub$Pr),   3),
-    Re_mean   = round(mean(sub$Re),   3),
-    TP_mean   = round(mean(sub$TP),   2),
-    FP_mean   = round(mean(sub$FP),   2),
-    FN_mean   = round(mean(sub$FN),   2),
-    CoefL2_mean  = round(mean(sub$CoefL2),   4),
-    JacRMSE_mean = round(mean(sub$JacRMSE),  4))
-}
-
-combos <- list(
-  c("v3_no_smooth",  "ADSIHT"),
-  c("v3_no_smooth",  "grLasso"),
-  c("v1_pre_smooth", "ADSIHT"),
-  c("v1_pre_smooth", "grLasso")
-)
-
-sum_df <- do.call(rbind, lapply(combos, function(x)
-  as.data.frame(t(summary_tab(df_all, x[1], x[2])),
-                stringsAsFactors = FALSE)))
-
-# ── Print summary ─────────────────────────────────────────────────────────────
-cat("\n")
-cat("================================================================\n")
-cat(sprintf("  PSS-Net: v3 (no smooth) vs v1 (pre-smooth)  |  %d runs\n", n_runs))
-cat(sprintf("  %d species | %d true edges | M=%d | N_cond=300 | σ=0.03\n",
-            n_sp, n_edges, M))
-cat("================================================================\n")
-cat(sprintf("  %-18s %-8s  %6s±%-5s  [%5s,%5s]  F1=%5s  Pr=%5s  Re=%5s  TP=%4s FP=%4s FN=%4s\n",
-            "Version", "Method",
-            "MCC", "sd", "min", "max", "mean", "mean", "mean", "avg", "avg", "avg"))
-cat("  ", strrep("-", 100), "\n", sep = "")
-
-for (i in seq_len(nrow(sum_df))) {
-  r <- sum_df[i, ]
-  # separator between versions
-  if (i == 3) cat("  ", strrep("·", 100), "\n", sep = "")
-  cat(sprintf("  %-18s %-8s  %6s±%-5s  [%5s,%5s]  F1=%5s  Pr=%5s  Re=%5s  TP=%4s FP=%4s FN=%4s\n",
-              r$version, r$method,
-              r$MCC_mean, r$MCC_sd,
-              r$MCC_min, r$MCC_max,
-              r$F1_mean, r$Pr_mean, r$Re_mean,
-              r$TP_mean, r$FP_mean, r$FN_mean))
-}
-cat("================================================================\n")
-
-# ── Per-run MCC table ─────────────────────────────────────────────────────────
-cat("\n── Per-run MCC ────────────────────────────────────────────────\n")
-cat(sprintf("  %5s  %10s  %10s  %10s  %10s  | Δ_ADS  Δ_GL\n",
-            "Seed",
-            "v3-ADSIHT", "v1-ADSIHT",
-            "v3-grLasso", "v1-grLasso"))
-cat("  ", strrep("-", 72), "\n", sep = "")
-
-for (s in seq_along(seeds)) {
-  mcc_v3_a <- results_v3[[s]]$ads["MCC"]
-  mcc_v1_a <- results_v1[[s]]$ads["MCC"]
-  mcc_v3_g <- results_v3[[s]]$gl["MCC"]
-  mcc_v1_g <- results_v1[[s]]$gl["MCC"]
-  cat(sprintf("  %5d  %10.3f  %10.3f  %10.3f  %10.3f  | %+.3f  %+.3f\n",
-              seeds[s],
-              mcc_v3_a, mcc_v1_a,
-              mcc_v3_g, mcc_v1_g,
-              mcc_v1_a - mcc_v3_a,
-              mcc_v1_g - mcc_v3_g))
-}
-cat("  ", strrep("-", 72), "\n", sep = "")
-cat(sprintf("  %5s  %10.3f  %10.3f  %10.3f  %10.3f  | %+.3f  %+.3f\n",
-            "Mean",
-            mean(sapply(results_v3, function(r) r$ads["MCC"])),
-            mean(sapply(results_v1, function(r) r$ads["MCC"])),
-            mean(sapply(results_v3, function(r) r$gl["MCC"])),
-            mean(sapply(results_v1, function(r) r$gl["MCC"])),
-            mean(sapply(results_v1, function(r) r$ads["MCC"])) -
-              mean(sapply(results_v3, function(r) r$ads["MCC"])),
-            mean(sapply(results_v1, function(r) r$gl["MCC"])) -
-              mean(sapply(results_v3, function(r) r$gl["MCC"]))))
-cat("\n")
-
-# ── Save text summary ─────────────────────────────────────────────────────────
-sink("results/mcc_comparison.txt")
-
-cat("================================================================\n")
-cat(sprintf("  PSS-Net: v3 (no smooth) vs v1 (pre-smooth)  |  %d runs\n", n_runs))
-cat(sprintf("  %d species | %d true edges | M=%d | N_cond=300 | σ=0.03\n",
-            n_sp, n_edges, M))
-cat(sprintf("  Pre-smoothing: lm(x_j ~ bs(u_j, df=6)) per species\n"))
-cat("================================================================\n")
-cat(sprintf("  %-18s %-8s  %6s±%-5s  [%5s,%5s]  F1=%5s  Pr=%5s  Re=%5s  TP=%4s FP=%4s FN=%4s\n",
-            "Version", "Method",
-            "MCC", "sd", "min", "max", "mean", "mean", "mean", "avg", "avg", "avg"))
-cat("  ", strrep("-", 100), "\n", sep = "")
-
-for (i in seq_len(nrow(sum_df))) {
-  r <- sum_df[i, ]
-  if (i == 3) cat("  ", strrep("·", 100), "\n", sep = "")
-  cat(sprintf("  %-18s %-8s  %6s±%-5s  [%5s,%5s]  F1=%5s  Pr=%5s  Re=%5s  TP=%4s FP=%4s FN=%4s\n",
-              r$version, r$method,
-              r$MCC_mean, r$MCC_sd,
-              r$MCC_min, r$MCC_max,
-              r$F1_mean, r$Pr_mean, r$Re_mean,
-              r$TP_mean, r$FP_mean, r$FN_mean))
-}
-cat("================================================================\n\n")
-
-cat("── Per-run MCC ────────────────────────────────────────────────\n")
-cat(sprintf("  %5s  %10s  %10s  %10s  %10s  | Δ_ADS  Δ_GL\n",
-            "Seed", "v3-ADSIHT", "v1-ADSIHT", "v3-grLasso", "v1-grLasso"))
-cat("  ", strrep("-", 72), "\n", sep = "")
-
-for (s in seq_along(seeds)) {
-  mcc_v3_a <- results_v3[[s]]$ads["MCC"]
-  mcc_v1_a <- results_v1[[s]]$ads["MCC"]
-  mcc_v3_g <- results_v3[[s]]$gl["MCC"]
-  mcc_v1_g <- results_v1[[s]]$gl["MCC"]
-  cat(sprintf("  %5d  %10.3f  %10.3f  %10.3f  %10.3f  | %+.3f  %+.3f\n",
-              seeds[s], mcc_v3_a, mcc_v1_a, mcc_v3_g, mcc_v1_g,
-              mcc_v1_a - mcc_v3_a, mcc_v1_g - mcc_v3_g))
-}
-cat("  ", strrep("-", 72), "\n", sep = "")
-cat(sprintf("  %5s  %10.3f  %10.3f  %10.3f  %10.3f  | %+.3f  %+.3f\n",
-            "Mean",
-            mean(sapply(results_v3, function(r) r$ads["MCC"])),
-            mean(sapply(results_v1, function(r) r$ads["MCC"])),
-            mean(sapply(results_v3, function(r) r$gl["MCC"])),
-            mean(sapply(results_v1, function(r) r$gl["MCC"])),
-            mean(sapply(results_v1, function(r) r$ads["MCC"])) -
-              mean(sapply(results_v3, function(r) r$ads["MCC"])),
-            mean(sapply(results_v1, function(r) r$gl["MCC"])) -
-              mean(sapply(results_v3, function(r) r$gl["MCC"]))))
-
-sink()
-cat("Saved: results/mcc_comparison.txt\n")
+dir.create("results/sim_results", showWarnings = FALSE, recursive = TRUE)
+write.csv(df_all, "results/sim_results/mcc_comparison.csv", row.names = FALSE)
+cat("\nSaved: results/sim_results/mcc_comparison.csv\n")
+cat("Run analysis_script/summarize_mcc_comparison.R to create the formatted table.\n")

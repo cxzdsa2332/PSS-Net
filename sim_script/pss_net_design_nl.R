@@ -1,0 +1,240 @@
+rm(list = ls())
+
+################################################################################
+# pss_net_design_nl.R  —  PSS-Net 创新点 A：最优扰动设计（非线性互作版）
+#
+# 与 pss_net_design.R 的区别：真值互作含二次项 f_ji(x)=A_ji*x + B_ji*x^2，
+# 稳态对 u 非线性（无闭式），用 ODE 积分求稳态。验证假设：
+#   非线性下"序贯 D-最优(主动学习)"明显拉开"u 空间填充(maximin)"，
+#   因 u 空间均匀 != 特征空间(含 x^2)信息最优。
+#
+# 主动学习 D-opt：候选用线性化稳态 x*≈x_wt - J^{-1}u 打分（廉价），
+#   仅入选条件做真实非线性 ODE 积分（对应可落地的湿实验序贯设计）。
+# 嵌套设计：三策略均给出 N_max 的有序序列，按前缀评估各 N（省积分）。
+#
+# 回归:  逐节点 ADSIHT（中心化+标准化），单项式基 M=2（恰好含 x, x^2）
+# Input:   none
+# Output:  results/sim_results/design_nl_comparison.csv
+# Plot:    analysis_script/plot_design_curves.R
+################################################################################
+
+suppressMessages({
+  library(ADSIHT)
+  library(deSolve)
+})
+
+set.seed(1)
+M_ord <- 2L
+
+## ---------------------------------------------------------------- 真值系统 ----
+# f_ji(x)=A_ji*x + Bq_ji*x^2 (i!=j); 自调节 f_jj=-gamma_j*x_j
+make_system_nl <- function(p = 8, n_in = 2, seed = 1) {
+  set.seed(seed)
+  A <- matrix(0, p, p)
+  Bq <- matrix(0, p, p)
+  for (j in seq_len(p)) {
+    src <- sample(setdiff(seq_len(p), j), n_in)
+    A[j, src] <- runif(n_in, 0.3, 0.7) * sample(c(-1, 1), n_in, replace = TRUE)
+    # 一半边附加二次项（非线性互作）
+    nl <- src[seq_len(max(1, floor(n_in / 2)))]
+    Bq[j, nl] <- runif(length(nl), 0.10, 0.30) * sample(c(-1, 1), length(nl), TRUE)
+  }
+  gamma <- runif(p, 3.0, 4.0)                  # 强自调节，保证非线性稳态稳定为正
+  mu <- runif(p, 1.0, 2.0)
+  sys <- list(p = p, A = A, Bq = Bq, gamma = gamma, mu = mu,
+              adj = ((A != 0) | (Bq != 0)) * 1)
+  sys$x_wt <- steady_one(sys, rep(0, p), x0 = mu / gamma)
+  sys
+}
+
+# 单条件稳态：从 x0 积分 ODE 至 t_max 取末值
+steady_one <- function(sys, u, x0 = NULL, t_max = 2000) {
+  p <- sys$p
+  if (is.null(x0)) x0 <- sys$x_wt
+  deriv <- function(t, x, parms) {
+    inter <- numeric(p)
+    for (j in seq_len(p)) {
+      others <- setdiff(seq_len(p), j)
+      inter[j] <- sum(sys$A[j, others] * x[others] +
+                      sys$Bq[j, others] * x[others]^2)
+    }
+    list(sys$mu - sys$gamma * x + inter + u)
+  }
+  out <- tryCatch(
+    ode(y = x0, times = c(0, t_max), func = deriv, parms = NULL,
+        method = "lsoda", rtol = 1e-9, atol = 1e-11),
+    error = function(e) NULL)
+  if (is.null(out)) return(rep(NA, p))
+  as.numeric(out[2, -1])
+}
+
+steady_many <- function(sys, U) {
+  t(apply(U, 1, function(u) steady_one(sys, u)))
+}
+
+# 线性化 Jacobian 矩阵（at wt）：B_jac[j,i]=A+2Bq*x_wt (i!=j), 对角 -gamma
+jac_lin <- function(sys) {
+  p <- sys$p
+  Bj <- matrix(0, p, p)
+  for (j in seq_len(p)) for (i in seq_len(p)) {
+    if (i == j) Bj[j, i] <- -sys$gamma[j]
+    else Bj[j, i] <- sys$A[j, i] + 2 * sys$Bq[j, i] * sys$x_wt[i]
+  }
+  Bj
+}
+
+## ------------------------------------------------------- 基函数 ----
+psi_row <- function(xvec) as.vector(sapply(xvec, function(x) x^(seq_len(M_ord))))
+aug_row <- function(xvec) c(1, psi_row(xvec))
+
+make_pool <- function(p, n_pool = 2500) {
+  matrix(runif(n_pool * p, -0.4, 0.8), n_pool, p)
+}
+
+## ------------------------------------------------- 三策略：返回 N_max 有序索引 ----
+order_random <- function(sys, pool, N_max) seq_len(N_max)
+
+order_maximin <- function(sys, pool, N_max) {
+  idx <- 1L
+  mind <- as.vector(sqrt(rowSums((sweep(pool, 2, pool[1, ]))^2)))
+  for (k in 2:N_max) {
+    nxt <- which.max(mind); idx <- c(idx, nxt)
+    mind <- pmin(mind, sqrt(rowSums((sweep(pool, 2, pool[nxt, ]))^2)))
+    mind[idx] <- -Inf
+  }
+  idx
+}
+
+# 主动学习 D-opt：候选用线性化稳态特征打分
+order_dopt <- function(sys, pool, N_max, lambda = 1e-2) {
+  q <- 1 + sys$p * M_ord
+  Bj <- jac_lin(sys)
+  # 线性化稳态：x*(u) = x_wt - Bj^{-1} u
+  X_lin <- t(sys$x_wt - solve(Bj, t(pool)))
+  Phi <- t(apply(X_lin, 1, aug_row))
+  Minv <- diag(1 / lambda, q)
+  add_point <- function(i) {
+    phi <- Phi[i, ]; Mv <- Minv %*% phi
+    Minv <<- Minv - (Mv %*% t(Mv)) / as.numeric(1 + phi %*% Mv)
+  }
+  sel <- 1L; add_point(1L)
+  avail <- rep(TRUE, nrow(pool)); avail[1L] <- FALSE
+  for (k in 2:N_max) {
+    score <- rowSums((Phi %*% Minv) * Phi); score[!avail] <- -Inf
+    nxt <- which.max(score); add_point(nxt)
+    sel <- c(sel, nxt); avail[nxt] <- FALSE
+  }
+  sel
+}
+
+## ------------------------------------------------------ 逐节点 ADSIHT 推断 ----
+infer_network <- function(sys, U, X) {
+  p <- sys$p
+  Psi <- t(apply(X, 1, psi_row))
+  group <- rep(seq_len(p), each = M_ord)
+  Psi_c <- sweep(Psi, 2, colMeans(Psi))
+  sdv <- apply(Psi_c, 2, sd); sdv[sdv < 1e-10] <- 1e-10
+  Psi_cs <- sweep(Psi_c, 2, sdv, FUN = "/")
+  adj_est <- matrix(0, p, p)
+  theta_hat <- matrix(0, p * M_ord, p)
+  for (j in seq_len(p)) {
+    rhs <- -(U[, j] - mean(U[, j]))
+    fit <- tryCatch(ADSIHT(Psi_cs, matrix(rhs), group, ic.type = "dsic"),
+                    error = function(e) NULL)
+    if (is.null(fit)) next
+    th <- fit$beta[, which.min(fit$ic)] / sdv
+    theta_hat[, j] <- th
+    gnorm <- sapply(seq_len(p), function(i)
+      sqrt(sum(th[((i - 1) * M_ord + 1):(i * M_ord)]^2)))
+    adj_est[j, gnorm >= 1e-8] <- 1
+  }
+  diag(adj_est) <- 0
+  list(adj_est = adj_est, theta_hat = theta_hat)
+}
+
+## ---------------------------------------------------------------- 指标 ----
+edge_metrics <- function(est, true) {
+  off <- which(row(true) != col(true))
+  e <- est[off]; t <- true[off]
+  TP <- sum(e == 1 & t == 1); FP <- sum(e == 1 & t == 0)
+  TN <- sum(e == 0 & t == 0); FN <- sum(e == 0 & t == 1)
+  pr <- ifelse(TP + FP == 0, 0, TP / (TP + FP))
+  re <- ifelse(TP + FN == 0, 0, TP / (TP + FN))
+  den <- sqrt(as.numeric(TP + FP) * (TP + FN) * (TN + FP) * (TN + FN))
+  mcc <- ifelse(den == 0, 0, (TP * TN - FP * FN) / den)
+  c(Pr = pr, Re = re, MCC = mcc)
+}
+
+# Jacobian 真值 J_ji = A + 2 Bq x_wt
+jac_rmse <- function(sys, theta_hat) {
+  p <- sys$p; Jhat <- matrix(0, p, p)
+  for (j in seq_len(p)) for (i in seq_len(p)) {
+    th <- theta_hat[((i - 1) * M_ord + 1):(i * M_ord), j]
+    Jhat[j, i] <- sum(seq_len(M_ord) * sys$x_wt[i]^(seq_len(M_ord) - 1) * th)
+  }
+  Jtrue <- sys$A + 2 * sys$Bq * matrix(sys$x_wt, p, p, byrow = TRUE)
+  off <- which(row(sys$A) != col(sys$A))
+  sqrt(mean((Jhat[off] - Jtrue[off])^2))
+}
+
+# 系数真值 theta_ji = (A_ji, Bq_ji)
+coef_l2 <- function(sys, theta_hat) {
+  p <- sys$p; err <- 0
+  for (j in seq_len(p)) {
+    th_true <- numeric(p * M_ord)
+    for (i in seq_len(p)) {
+      th_true[(i - 1) * M_ord + 1] <- sys$A[j, i]
+      th_true[(i - 1) * M_ord + 2] <- sys$Bq[j, i]
+    }
+    err <- err + sqrt(sum((theta_hat[, j] - th_true)^2))
+  }
+  err / p
+}
+
+## ----------------------------------------------------------- 主实验循环 ----
+N_grid <- c(12, 16, 20, 30, 40, 60)
+N_max <- max(N_grid)
+strategies <- c("random", "maximin", "dopt")
+R <- 20
+sigma <- 0.04
+
+rows <- list()
+for (seed in seq_len(R)) {
+  sys <- make_system_nl(p = 8, n_in = 2, seed = 200 + seed)
+  if (any(!is.finite(sys$x_wt)) || any(sys$x_wt <= 0)) { cat("seed", seed, "skip (bad wt)\n"); next }
+  pool <- make_pool(sys$p, n_pool = 2500)
+  for (strat in strategies) {
+    ord <- switch(strat,
+                  random  = order_random(sys, pool, N_max),
+                  maximin = order_maximin(sys, pool, N_max),
+                  dopt    = order_dopt(sys, pool, N_max))
+    U_full <- pool[ord, , drop = FALSE]
+    U_full[1, ] <- 0                            # 首条件设为野生型
+    X_full <- steady_many(sys, U_full)          # 真实非线性稳态（仅入选点积分）
+    ok <- apply(X_full, 1, function(r) all(is.finite(r)) && all(r > 0))
+    X_obs_full <- X_full + matrix(rnorm(length(X_full), sd = sigma), nrow(X_full))
+    for (N in N_grid) {
+      use <- which(ok)[which(ok) <= N]          # 前缀内的有效条件
+      if (length(use) < 8) next
+      res <- infer_network(sys, U_full[use, , drop = FALSE],
+                           X_obs_full[use, , drop = FALSE])
+      m <- edge_metrics(res$adj_est, sys$adj)
+      rows[[length(rows) + 1]] <- data.frame(
+        seed = seed, N = N, n_eff = length(use), strategy = strat,
+        Pr = m["Pr"], Re = m["Re"], MCC = m["MCC"],
+        CoefL2 = coef_l2(sys, res$theta_hat),
+        JacRMSE = jac_rmse(sys, res$theta_hat))
+    }
+  }
+  cat("seed", seed, "done\n")
+}
+df <- do.call(rbind, rows); rownames(df) <- NULL
+
+dir.create("results/sim_results", showWarnings = FALSE, recursive = TRUE)
+write.csv(df, "results/sim_results/design_nl_comparison.csv", row.names = FALSE)
+
+agg <- aggregate(cbind(MCC, Pr, Re, CoefL2, JacRMSE) ~ strategy + N, df, mean)
+agg <- agg[order(agg$N, agg$strategy), ]
+cat("\n===== nonlinear, mean over seeds =====\n")
+print(agg, row.names = FALSE)
+cat("\nSaved: results/sim_results/design_nl_comparison.csv\n")

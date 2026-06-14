@@ -34,12 +34,57 @@
   note    = {Sparse additive ODEs for dynamic gene regulatory network recovery}
 }
 
-% ===== 双稀疏推断 ADSIHT =====
+% ===== 双稀疏推断 ADSIHT（元数据已据 arXiv:2305.04182 核对）=====
 @article{zhang2023minimax,
-  author  = {Zhang, Xiao and others},
-  title   = {Minimax Optimal Estimation via Adaptive Double Sparse Iterative Hard Thresholding},
-  year    = {2023},
-  note    = {ADSIHT, CRAN package}
+  author  = {Zhang, Yanhang and Li, Zhifan and Liu, Shixiang and Yin, Jianxin},
+  title   = {A Minimax Optimal Approach to High-Dimensional Double Sparse
+             Linear Regression},
+  journal = {Journal of Machine Learning Research},
+  year    = {2024},
+  volume  = {25},
+  note    = {arXiv:2305.04182; ADSIHT, CRAN package},
+  eprint  = {2305.04182},
+  archivePrefix = {arXiv}
+}
+
+% ===== 双稀疏 / sparse group lasso 的 minimax 速率与样本复杂度 =====
+@article{cai2022sparsegroup,
+  author  = {Cai, T. Tony and Zhang, Anru R. and Zhou, Yuchen},
+  title   = {Sparse Group Lasso: Optimal Sample Complexity, Convergence Rate,
+             and Statistical Inference},
+  journal = {IEEE Transactions on Information Theory},
+  year    = {2022},
+  volume  = {68},
+  number  = {9},
+  pages   = {5975--6002},
+  doi     = {10.1109/TIT.2022.3175455},
+  eprint  = {1909.09851},
+  archivePrefix = {arXiv}
+}
+
+% ===== Lasso 经典误差速率（RE 条件）=====
+@article{bickel2009lasso,
+  author  = {Bickel, Peter J. and Ritov, Ya'acov and Tsybakov, Alexandre B.},
+  title   = {Simultaneous Analysis of {Lasso} and {Dantzig} Selector},
+  journal = {The Annals of Statistics},
+  year    = {2009},
+  volume  = {37},
+  number  = {4},
+  pages   = {1705--1732},
+  doi     = {10.1214/08-AOS620}
+}
+
+% ===== Group Lasso 经典误差速率（组稀疏）=====
+@article{lounici2011group,
+  author  = {Lounici, Karim and Pontil, Massimiliano and van de Geer, Sara and
+             Tsybakov, Alexandre B.},
+  title   = {Oracle Inequalities and Optimal Inference under Group Sparsity},
+  journal = {The Annals of Statistics},
+  year    = {2011},
+  volume  = {39},
+  number  = {4},
+  pages   = {2164--2204},
+  doi     = {10.1214/11-AOS896}
 }
 
 % ===== 网络动力学普适性 =====
@@ -52,4 +97,212 @@
   number  = {10},
   pages   = {673--681},
   doi     = {10.1038/nphys2741}
+}
+
+%==============================================================================
+% 相关工作（2026-06 文献调研补充）
+%==============================================================================
+
+% ===== 最接近：稳态数据推断微生物生态网络（无需动力学模型假设） =====
+% 与本工作最相关——同样基于稳态丰度而非时序，可在 gLV 假设下给出互作强度；
+% 区别：Xiao 等用稳态间差分判定符号，本工作用扰动稳态 + 稀疏非参 ODE 估计互作函数。
+@article{xiao2017mapping,
+  author  = {Xiao, Yandong and Angulo, Marco Tulio and Friedman, Jonathan and
+             Waldor, Matthew K. and Weiss, Scott T. and Liu, Yang-Yu},
+  title   = {Mapping the Ecological Networks of Microbial Communities},
+  journal = {Nature Communications},
+  year    = {2017},
+  volume  = {8},
+  number  = {1},
+  pages   = {2042},
+  doi     = {10.1038/s41467-017-02090-2}
+}
+
+% ===== 稀疏加性 ODE + 自适应 group lasso（基因调控网络） =====
+@article{wu2014saode,
+  author  = {Wu, Hulin and Lu, Tao and Xue, Hongqi and Liang, Hua},
+  title   = {Sparse Additive Ordinary Differential Equations for Dynamic Gene
+             Regulatory Network Modeling},
+  journal = {Journal of the American Statistical Association},
+  year    = {2014},
+  volume  = {109},
+  number  = {506},
+  pages   = {700--716},
+  doi     = {10.1080/01621459.2013.859617}
+}
+
+% ===== SINDy：稀疏识别非线性动力系统（本工作 sindy_ss_* 对照的方法学源头）=====
+@article{brunton2016sindy,
+  author  = {Brunton, Steven L. and Proctor, Joshua L. and Kutz, J. Nathan},
+  title   = {Discovering Governing Equations from Data by Sparse Identification
+             of Nonlinear Dynamical Systems},
+  journal = {Proceedings of the National Academy of Sciences},
+  year    = {2016},
+  volume  = {113},
+  number  = {15},
+  pages   = {3932--3937},
+  doi     = {10.1073/pnas.1517384113}
+}
+
+% ===== SINDy 用于微生物两两互作建模 =====
+@inproceedings{sindy2023microbiota,
+  author    = {{SINDy microbiota authors}},
+  title     = {Modeling Bacteria Pairwise Interactions in Human Microbiota by
+               Sparse Identification of Nonlinear Dynamics (SINDy)},
+  booktitle = {Proc.\ IEEE EMBC},
+  year      = {2023},
+  doi       = {10.1109/EMBC40787.2023.10341078},
+  note      = {PMID: 38083503}
+}
+
+% ===== 时序 gLV 推断（小鼠肠道，本工作基准数据之一）=====
+@article{stein2013ecological,
+  author  = {Stein, Richard R. and Bucci, Vanni and Toussaint, Nora C. and
+             Buffie, Charlie G. and R{\"u}tschlin, Gunnar and Xavier, Jo{\~a}o B.
+             and others},
+  title   = {Ecological Modeling from Time-Series Inference: Insight into
+             Dynamics and Stability of Intestinal Microbiota},
+  journal = {PLoS Computational Biology},
+  year    = {2013},
+  volume  = {9},
+  number  = {12},
+  pages   = {e1003388},
+  doi     = {10.1371/journal.pcbi.1003388}
+}
+
+% ===== MDSINE：时序微生物动力系统推断引擎 =====
+@article{bucci2016mdsine,
+  author  = {Bucci, Vanni and Tzen, Belinda and Li, Ning and Simmons, Matt and
+             Tanoue, Takeshi and Bogart, Elijah and others},
+  title   = {{MDSINE}: Microbial Dynamical Systems Inference Engine for
+             Microbiome Time-Series Analyses},
+  journal = {Genome Biology},
+  year    = {2016},
+  volume  = {17},
+  number  = {1},
+  pages   = {121},
+  doi     = {10.1186/s13059-016-0980-6}
+}
+
+% ===== 合成肠道菌群互作（候选真实数据 + 互作可解释性）=====
+@article{venturelli2018deciphering,
+  author  = {Venturelli, Ophelia S. and Carr, Alex C. and Fisher, Garth and
+             Hsu, Ryan H. and Lau, Rebecca and Bowen, Benjamin P. and others},
+  title   = {Deciphering Microbial Interactions in Synthetic Human Gut
+             Microbiome Communities},
+  journal = {Molecular Systems Biology},
+  year    = {2018},
+  volume  = {14},
+  number  = {6},
+  pages   = {e8157},
+  doi     = {10.15252/msb.20178157}
+}
+
+@article{clark2021design,
+  author  = {Clark, Ryan L. and Connors, Bryce M. and Stevenson, David M. and
+             Hromada, Susan E. and Hamilton, Joshua J. and Amador-Noguez, Daniel
+             and Venturelli, Ophelia S.},
+  title   = {Design of Synthetic Human Gut Microbiome Assembly and Butyrate
+             Production},
+  journal = {Nature Communications},
+  year    = {2021},
+  volume  = {12},
+  number  = {1},
+  pages   = {3254},
+  doi     = {10.1038/s41467-021-22938-y}
+}
+
+% ===== 超越两两互作 / 高阶互作（非线性互作的动机）=====
+@article{maynard2024beyond,
+  author  = {Maynard, Daniel S. and others},
+  title   = {Learning Beyond-Pairwise Interactions Enables the Bottom-Up
+             Prediction of Microbial Community Structure},
+  journal = {Proceedings of the National Academy of Sciences},
+  year    = {2024},
+  doi     = {10.1073/pnas.2312396121}
+}
+
+% ===== 组成型数据稳健的稀疏生态网络（关联类基线）=====
+@article{kurtz2015sparse,
+  author  = {Kurtz, Zachary D. and M{\"u}ller, Christian L. and Miraldi, Emily R.
+             and Littman, Dan R. and Blaser, Martin J. and Bonneau, Richard A.},
+  title   = {Sparse and Compositionally Robust Inference of Microbial
+             Ecological Networks},
+  journal = {PLoS Computational Biology},
+  year    = {2015},
+  volume  = {11},
+  number  = {5},
+  pages   = {e1004226},
+  doi     = {10.1371/journal.pcbi.1004226}
+}
+
+%==============================================================================
+% Rongling Wu 课题组相关工作（ODE/qdODE 静态数据网络重构谱系）
+%==============================================================================
+
+% ===== idopNetwork：从静态空间丰度数据重构有向物种互作网络（qdODE + LASSO）=====
+% 与本工作最接近的同组方法：同样从静态/稳态丰度推断有向互作网络，
+% 用 allometric power-curve + qdODE 解耦各物种独立/依赖成分。
+@article{dong2023idopnetwork,
+  author  = {Dong, Ang and Wu, Shuang and Che, Jincan and Wang, Yu and Wu, Rongling},
+  title   = {{idopNetwork}: A Network Tool to Dissect Spatial Community Ecology},
+  journal = {Methods in Ecology and Evolution},
+  year    = {2023},
+  volume  = {14},
+  number  = {9},
+  pages   = {2272--2283},
+  doi     = {10.1111/2041-210X.14172}
+}
+
+% ===== qdODE 从静态组学重构个性化基因调控网络（生态/进化博弈导出）=====
+@article{chen2019omnidirectional,
+  author  = {Chen, Chixiang and Jiang, Libo and Fu, Guifang and Wang, Ming and
+             Wang, Yaqun and Shen, Biyi and Liu, Zhenqiu and Wang, Zuoheng and
+             Hou, Wei and Berceli, Scott A. and Wu, Rongling},
+  title   = {An Omnidirectional Visualization Model of Personalized Gene
+             Regulatory Networks},
+  journal = {npj Systems Biology and Applications},
+  year    = {2019},
+  volume  = {5},
+  pages   = {38},
+  doi     = {10.1038/s41540-019-0116-1}
+}
+
+% ===== 微生物群落组装的行为网络（生态博弈 + ODE 互作分解）=====
+@article{wang2019interrogation,
+  author  = {Wang, Qian and Liu, Xinjuan and Jiang, Libo and Cao, Yige and
+             Zhan, Xiang and Griffin, Christopher H. and Wu, Rongling},
+  title   = {Interrogation of Internal Workings in Microbial Community Assembly:
+             Play a Game through a Behavioral Network?},
+  journal = {mSystems},
+  year    = {2019},
+  volume  = {4},
+  number  = {5},
+  pages   = {e00550-19},
+  doi     = {10.1128/msystems.00550-19}
+}
+
+% ===== SEGN：实时基因网络推断（ODE 网络，表型可塑性）=====
+@article{jiang2020segn,
+  author  = {Jiang, Libo and Griffin, Christopher H. and Wu, Rongling},
+  title   = {{SEGN}: Inferring Real-Time Gene Networks Mediating Phenotypic
+             Plasticity},
+  journal = {Computational and Structural Biotechnology Journal},
+  year    = {2020},
+  volume  = {18},
+  pages   = {2510--2521},
+  doi     = {10.1016/j.csbj.2020.08.029}
+}
+
+% ===== 功能映射奠基论文（ODE/曲线参数遗传定位范式的源头，高被引）=====
+@article{ma2002functional,
+  author  = {Ma, Chang-Xing and Casella, George and Wu, Rongling},
+  title   = {Functional Mapping of Quantitative Trait Loci Underlying the
+             Character Process: A Theoretical Framework},
+  journal = {Genetics},
+  year    = {2002},
+  volume  = {161},
+  number  = {4},
+  pages   = {1751--1762},
+  doi     = {10.1093/genetics/161.4.1751}
 }

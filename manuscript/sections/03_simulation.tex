@@ -3,17 +3,52 @@
 
 \subsection{Experimental setup}
 \label{sec:sim:setup}
-% TODO: describe simulated GLV / nonlinear ODEs (sim_script/pss_net_*.R),
-% perturbation conditions, noise levels, basis choices.
-% Evaluation metrics: TP/FP/FN/TN, Precision/Recall/F1, MCC, CoefL2, JacRMSE.
-% Repeated over 10 seeds; report mean $\pm$ sd.
+We evaluate PSS-Net on controlled nonlinear systems where the true directed
+network is known.  The simulations are intended to probe two questions: whether
+the perturbed steady-state regression recovers the support of sparse cross-node
+effects, and whether the double-sparse estimator improves over a group-sparse
+continuous-shrinkage baseline.
+
+The primary additive benchmark follows the working model in
+\Cref{sec:method:model}, with low-order polynomial effects and sparse directed
+coupling.  In addition, we include a multiplicative generalized
+Lotka--Volterra (gLV) benchmark as an example of a nonlinear system whose
+positive steady states reduce to an additive linear equilibrium equation.  For
+this benchmark,
+\begin{equation}
+  \frac{dx_j}{dt}
+  =
+  x_j
+  \left(
+  r_j + \sum_{i\neq j} A_{ji}x_i - \gamma_j x_j + u_j
+  \right),
+  \qquad j=1,\ldots,p,
+  \label{eq:sim-glv}
+\end{equation}
+where $A_{ji}$ denotes cross-node coupling and $\gamma_j>0$ denotes
+self-damping.  At any positive steady state, division by $x_j^*$ gives
+\[
+  r_j + \sum_{i\neq j} A_{ji}x_i^* - \gamma_j x_j^* + u_j = 0,
+\]
+so the same steady-state regression used by PSS-Net is correctly specified even
+though the transient gLV dynamics are not additive.
+
+For each simulated system, we generate $N$ perturbation conditions, integrate the
+ODE to equilibrium, add measurement noise, and fit each target node separately.
+The first perturbation is the unperturbed reference condition used for local
+Jacobian evaluation.  Unless otherwise stated, the basis dictionary is the
+no-intercept monomial basis used in \Cref{sec:method:basis}.  Network recovery is
+summarized by TP/FP/FN/TN, precision, recall, $F_1$, and MCC.  Parameter recovery
+is summarized by coefficient $\ell_2$ error and non-self Jacobian RMSE.  Results
+are averaged over repeated random seeds and reported as mean $\pm$ standard
+deviation.
 
 \subsection{Method comparison: \adsiht{} vs.\ Group Lasso}
 \label{sec:sim:compare}
 % TODO: summarize results/mcc_comparison.csv.
 \begin{table}[t]
   \centering
-  \caption{Network recovery on linear GLV (8 species, 10 seeds).
+  \caption{Network recovery on the linear gLV benchmark (8 nodes, 10 seeds).
            Results from \texttt{results/mcc\_comparison.csv}.}
   \label{tab:mcc}
   \begin{tabular}{llccc}
@@ -31,7 +66,7 @@
 \subsection{Effect of pre-smoothing}
 \label{sec:sim:smoothing}
 % TODO: document the finding that B-spline pre-smoothing degrades MCC
-% in multi-species systems (CLAUDE.md §6).
+% in multivariate systems.
 
 \subsection{Sensitivity to $(p, N, s, \sigma)$ and basis choice}
 \label{sec:sim:sensitivity}

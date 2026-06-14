@@ -1,78 +1,280 @@
 \section{Method}
 \label{sec:method}
 
-% Mirrors CLAUDE.md §1–§7. Fill in prose; equations below are the skeleton.
+We consider the problem of learning a directed coupling network from perturbed
+steady-state observations of a nonlinear dynamical system.  The method is
+designed for settings in which repeated interventions can be applied, the system
+can be allowed to relax, and the resulting equilibrium state can be measured
+more reliably than time derivatives.  The statistical object of interest is not
+the full transient trajectory, but the collection of univariate steady-state
+effects that explain how perturbations propagate through the system.
 
-\subsection{Sparse additive ODE model}
+\subsection{A sparse additive steady-state model}
 \label{sec:method:model}
-For a community of $p$ species with abundances $\xv(t)=(x_1,\dots,x_p)^\top$,
+
+Let $\xv(t)=(x_1(t),\ldots,x_p(t))^\top\in\R_+^p$ denote the state of $p$
+interacting variables.  We use the additive ODE
 \begin{equation}
-  \frac{dx_j(t)}{dt} = \mu_j + \sum_{i=1}^{p} \fji\!\big(x_i(t)\big),
-  \qquad j=1,\dots,p,
+  \frac{d x_j(t)}{dt}
+  =
+  \mu_j
+  + f_{jj}\{x_j(t)\}
+  + \sum_{i\neq j} f_{ji}\{x_i(t)\}
+  + u_j(t),
+  \qquad j=1,\ldots,p,
   \label{eq:ode}
 \end{equation}
-where $\mu_j$ is the intrinsic growth/death rate and $\fji(\cdot)$ the unknown
-univariate interaction of species $i$ on $j$. The network $G=(V,E)$ has an edge
-$(j\leftarrow i)$ iff $\fji\not\equiv 0$.
+as the working model for perturbed steady states.  Here $\mu_j$ is a baseline
+drift term, $u_j(t)$ is an externally controlled perturbation, $f_{jj}$ is the
+self-feedback function for node $j$, and $f_{ji}$ for $i\neq j$ is the effect of
+source node $i$ on target node $j$.
 
-\begin{assumption}[Identifiability, \citealp{meister2013pss}]
-\label{ass:zero}
-$\fji(0)=0$ for all $i,j$.
-\end{assumption}
-
-\subsection{Perturbed steady-state design}
-\label{sec:method:pss}
-Under external perturbation $u_j$ the dynamics become
-$\dot{x}_j = \mu_j + \sum_i \fji(x_i) + u_j$; at the $k$-th steady state
-$\xv^{(k)*}$,
+The directed network is defined by nonzero cross-node effects,
 \begin{equation}
-  \mu_j + \sum_{i=1}^{p} \fji\!\big(x_i^{(k)*}\big) + u_j^{(k)} = 0 .
+  E = \{(j\leftarrow i): f_{ji}\not\equiv 0,\ i\neq j\}.
+  \label{eq:edge}
+\end{equation}
+Self-feedback functions are estimated because they affect equilibrium and local
+stability, but they are not counted as directed network edges.
+
+The decomposition in \eqref{eq:ode} has the usual additive identifiability issue:
+a constant can be moved between $\mu_j$ and any $f_{ji}$.  We impose the
+normalization
+\begin{equation}
+  f_{ji}(0)=0,\qquad i,j=1,\ldots,p,
+  \label{eq:zero}
+\end{equation}
+so that all constant offsets are absorbed by $\mu_j$.  This convention also
+matches the interpretation that a source variable at the zero reference level
+contributes no additional effect.
+
+\subsection{Perturbed steady-state observations}
+\label{sec:method:pss}
+
+Suppose that $N$ perturbation conditions
+$\uv^{(1)},\ldots,\uv^{(N)}\in\R^p$ are applied.  For each condition, the system
+is allowed to reach a stable equilibrium $\xv^{(k)*}$, and we observe
+\begin{equation}
+  \tilde{\xv}^{(k)} = \xv^{(k)*} + \bm{\eta}^{(k)},
+  \qquad k=1,\ldots,N,
+  \label{eq:obs}
+\end{equation}
+where $\bm{\eta}^{(k)}$ represents measurement noise.  At equilibrium,
+\eqref{eq:ode} implies the algebraic constraint
+\begin{equation}
+  \mu_j
+  + f_{jj}\{x_j^{(k)*}\}
+  + \sum_{i\neq j} f_{ji}\{x_i^{(k)*}\}
+  + u_j^{(k)}
+  = 0,
+  \qquad k=1,\ldots,N.
   \label{eq:ss}
 \end{equation}
-The response for target $j$ is $-u_j^{(k)}$; no numerical differentiation is needed.
+Thus, for each target node $j$, the negative perturbation $-u_j^{(k)}$ acts as
+the response and the measured steady-state variables provide the predictors.
+This is the key statistical reduction: estimation can proceed by regression
+without numerical differentiation of noisy trajectories
+\citep{meister2013pss,henderson2014network,wu2014saode}.
 
-\subsection{Nonparametric basis expansion}
+\subsection{Basis expansion}
 \label{sec:method:basis}
+
+We approximate each unknown univariate effect by a finite dictionary
+$\psiv(a)=(\psi_1(a),\ldots,\psi_M(a))^\top$,
 \begin{equation}
-  \fji(a) = \psiv(a)^\top \thetav_{ji} + \delta_{ji}(a),
-  \qquad \thetav_{ji}\in\R^{M},
+  f_{ji}(a)
+  \approx
+  \psiv(a)^\top \thetav_{ji}
+  =
+  \sum_{m=1}^{M} \theta_{jim}\psi_m(a),
+  \qquad
+  \thetav_{ji}\in\R^M.
   \label{eq:basis}
 \end{equation}
-with a no-intercept basis ($\psi_m(0)=0$) so \Cref{ass:zero} holds.
-% TODO: state B-spline choice bs(x, df=M, intercept=FALSE).
+The implementation uses the no-intercept monomial dictionary
+$\psi_m(a)=a^m$, $m=1,\ldots,M$, which automatically satisfies
+\eqref{eq:zero}.  Other no-intercept dictionaries can be substituted, but the
+monomial dictionary has a useful interpretability property: a linear effect is
+represented by a single nonzero coefficient, rather than being spread across
+several basis functions.
 
-\subsection{Node-wise design matrix and centering}
-\label{sec:method:design}
-Stacking \eqref{eq:ss} over $N$ conditions gives, per node $j$,
+For target $j$, define the stacked coefficient vector
+\[
+  \thetav_j
+  =
+  (\thetav_{j1}^\top,\ldots,\thetav_{jp}^\top)^\top
+  \in \R^{pM},
+\]
+and construct the design matrix $\Psib\in\R^{N\times pM}$ with entries
 \begin{equation}
-  \Psib\,\thetav_j + \mu_j \mathbf{1} = -\uv_{\cdot j} + \bm{\varepsilon}_j,
-  \qquad \Psib\in\R^{N\times pM}.
+  \Psib_{k,(i-1)M+m}
+  =
+  \psi_m\!\left(\tilde{x}_i^{(k)}\right),
+  \qquad
+  k=1,\ldots,N,\ i=1,\ldots,p,\ m=1,\ldots,M.
+  \label{eq:design}
+\end{equation}
+Stacking \eqref{eq:ss} over the $N$ perturbation conditions gives the node-wise
+linear working model
+\begin{equation}
+  \Psib\thetav_j + \mu_j\mathbf{1}_N
+  =
+  -\uv_{\cdot j} + \bm{\varepsilon}_j,
   \label{eq:linear}
 \end{equation}
-Column centering removes the intercept,
-$\Psic\,\thetav_j = -\uv_{c,j} + \bm{\varepsilon}_j$, with recovery
-$\hat\mu_j = -\bar u_j - \bar{\Psib}\,\hat\thetav_j$.
+where $\uv_{\cdot j}=(u_j^{(1)},\ldots,u_j^{(N)})^\top$ and
+$\bm{\varepsilon}_j$ collects measurement noise and basis truncation error.
 
-\subsection{Double-sparse inference via \adsiht{}}
-\label{sec:method:adsiht}
-% Group-wise sparsity (S1) + within-group sparsity (S2).
-\begin{equation}
-  \min_{\thetav_j}\ \frac{1}{2N}\norm{\Psic\,\thetav_j + \uv_{c,j}}_2^2
-  \quad\text{s.t.}\quad
-  \sum_{i}\Ind(\norm{\thetav_{ji,\cdot}}_2\neq 0)\le s,\;
-  \sum_{m}\Ind(\theta_{jim}\neq 0)\le s_0 .
-  \label{eq:double}
-\end{equation}
-% TODO: describe ADSIHT, group=rep(1:p, each=M), ic.type="dsic".
+\subsection{Centering, scaling, and intercept recovery}
+\label{sec:method:preprocess}
 
-\subsection{Jacobian extraction and network estimation}
-\label{sec:method:jacobian}
-At the wild-type steady state,
+Because the basis columns generally have nonzero empirical means, the intercept
+and the effect coefficients are estimated more stably after centering.  Let
+$\bar{\Psib}=N^{-1}\mathbf{1}_N^\top\Psib$ and
+$\bar u_j=N^{-1}\mathbf{1}_N^\top \uv_{\cdot j}$.  Define
 \begin{equation}
-  J_{ji} = \psiv'(x_i^{\wt})^\top \hat\thetav_{ji},
+  \Psic = \Psib-\mathbf{1}_N\bar{\Psib},
   \qquad
-  \hat A_{ji} = J_{ji}\ (i\neq j),\quad \hat\gamma_j = -J_{jj},
+  \uv_{c,j} = \uv_{\cdot j}-\bar u_j\mathbf{1}_N.
+  \label{eq:center}
+\end{equation}
+The centered regression is
+\begin{equation}
+  \Psic\thetav_j
+  =
+  -\uv_{c,j} + \bm{\varepsilon}_j.
+  \label{eq:centered-linear}
+\end{equation}
+For numerical conditioning and fair penalization across basis columns, each
+column of $\Psic$ is divided by its empirical standard deviation.  Let
+$s_\ell=\operatorname{sd}(\bm{\Psi}_{c,\cdot\ell})$ and
+$s_\ell\leftarrow \max(s_\ell,10^{-10})$ for protection against constant
+columns.  With $S=\operatorname{diag}(s_1,\ldots,s_{pM})$, the scaled design is
+$\Psic^{(s)}=\Psic S^{-1}$.  If $\hat{\thetav}_j^{(s)}$ is estimated on the
+scaled design, the original-scale estimate is
+\begin{equation}
+  \hat{\thetav}_j = S^{-1}\hat{\thetav}_j^{(s)}.
+  \label{eq:unscale}
+\end{equation}
+The baseline term is then recovered from the uncentered estimating equation:
+\begin{equation}
+  \hat\mu_j = -\bar u_j - \bar{\Psib}\hat{\thetav}_j.
+  \label{eq:intercept}
+\end{equation}
+
+\subsection{Double-sparse estimation}
+\label{sec:method:adsiht}
+
+The coefficient vector has two natural sparsity structures.  First, the network
+is sparse: for a fixed target node $j$, only a small number of source nodes have
+nonzero cross-node effects.  Second, each active univariate effect is expected to
+have a simple representation in the chosen dictionary.  Formally, we use
+\begin{align}
+  \left|\{i\neq j:\norm{\thetav_{ji}}_2>0\}\right| &\le s,
+  \label{eq:sparse-group}\\
+  \norm{\thetav_{ji}}_0 &\le s_0
+  \qquad\text{for active } (j\leftarrow i).
+  \label{eq:sparse-within}
+\end{align}
+
+Our primary estimator is adaptive double sparse iterative hard thresholding
+(\adsiht{}; \citealp{zhang2023minimax}).  For each target node $j$, it solves
+the scaled version of
+\begin{equation}
+  \min_{\thetav_j}
+  \frac{1}{2N}
+  \norm{\Psic\thetav_j+\uv_{c,j}}_2^2
+  \quad
+  \text{subject to \eqref{eq:sparse-group}--\eqref{eq:sparse-within}}.
+  \label{eq:adsiht-objective}
+\end{equation}
+The grouping is defined by source node, with
+\texttt{group = rep(1:p, each = M)}.  The information criterion in \adsiht{}
+selects the effective sparsity levels adaptively, avoiding manual tuning of
+$(s,s_0)$.
+
+As a continuous-shrinkage comparator, we also consider the group lasso estimator
+\citep{lounici2011group},
+\begin{equation}
+  \min_{\thetav_j}
+  \left\{
+  \frac{1}{2N}\norm{\Psic^{(s)}\thetav_j^{(s)}+\uv_{c,j}}_2^2
+  + \lambda \sum_{i=1}^{p}\norm{\thetav_{ji}^{(s)}}_2
+  \right\}.
+  \label{eq:group-lasso}
+\end{equation}
+Unlike hard-thresholding, group lasso typically does not produce exact group
+zeros, so edge selection requires a post-estimation threshold.
+
+\subsection{Network reconstruction and local linear effects}
+\label{sec:method:network}
+
+The estimated edge set is obtained from the group norms of the fitted effects:
+\begin{equation}
+  \hat E
+  =
+  \{(j\leftarrow i): i\neq j,\ \norm{\hat{\thetav}_{ji}}_2\ge \tau_j\}.
+  \label{eq:edge-estimate}
+\end{equation}
+For \adsiht{}, we use a floating-point threshold $\tau_j=10^{-10}$.  For group
+lasso, we use the relative threshold
+$\tau_j=0.01\max_{i\neq j}\norm{\hat{\thetav}_{ji}}_2$.
+
+To summarize the local direction and magnitude of effects, we evaluate the
+Jacobian of the fitted additive vector field at an unperturbed reference
+steady state $\xv^{\mathrm{ref}}$:
+\begin{equation}
+  \hat J_{ji}
+  =
+  \left.
+  \frac{\partial}{\partial x_i}
+  \left[
+  \hat\mu_j + \hat f_{jj}(x_j)
+  + \sum_{i'\neq j}\hat f_{ji'}(x_{i'})
+  \right]
+  \right|_{\xv=\xv^{\mathrm{ref}}}
+  =
+  \psiv'\!\left(x_i^{\mathrm{ref}}\right)^\top \hat{\thetav}_{ji}.
   \label{eq:jacobian}
 \end{equation}
-with edge set $\hat E=\{(j\leftarrow i):\norm{\hat\thetav_{ji,\cdot}}_2\ge\tau\}$;
-$\hat A_{ji}>0$ promotion, $\hat A_{ji}<0$ inhibition.
+For the monomial dictionary, this reduces to
+\begin{equation}
+  \hat J_{ji}
+  =
+  \sum_{m=1}^{M}
+  m\left(x_i^{\mathrm{ref}}\right)^{m-1}\hat\theta_{jim}.
+  \label{eq:jacobian-monomial}
+\end{equation}
+A positive $\hat J_{ji}$ indicates that increasing node $i$ locally increases
+the rate of change of node $j$ near the reference state, whereas a negative
+value indicates a locally decreasing effect.
+
+\subsection{Statistical interpretation}
+\label{sec:method:theory}
+
+For a fixed target node, the centered steady-state regression
+\eqref{eq:centered-linear} is a high-dimensional grouped linear model with
+structured sparsity.  Existing minimax theory for double-sparse regression
+\citep{cai2022sparsegroup,zhang2023minimax} implies that, under suitable sparse
+eigenvalue or restricted isometry conditions on $\Psic$, the squared estimation
+error scales as
+\begin{equation}
+  \norm{\hat{\thetav}_j-\thetav_j^*}_2^2
+  =
+  O_{\mathbb{P}}\!\left[
+  \frac{\sigma^2}{N}
+  \left\{
+  s\log\frac{p}{s}
+  +
+  ss_0\log\frac{eM}{s_0}
+  \right\}
+  \right].
+  \label{eq:rate}
+\end{equation}
+The first term is the cost of locating the active source nodes, and the second
+is the cost of selecting and estimating the active basis coefficients within
+those nodes.  If the minimum active group norm is larger than the stochastic
+estimation error, the same framework yields support recovery for the directed
+edge set.  In the perturbed steady-state setting, these design conditions are
+controlled by the choice of perturbations through the induced equilibrium
+states; this motivates the perturbation-design experiments reported separately.
