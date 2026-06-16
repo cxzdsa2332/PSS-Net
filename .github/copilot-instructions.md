@@ -28,12 +28,24 @@ PSS-Net/
 ├── sim_script/manual/# Exploratory or historical scripts; exempt from split rule
 ├── analysis_script/  # Plotting and summary scripts reading results/sim_results/
 ├── methods/          # Method notes and design documents
+├── note/             # Project-process thinking: open questions, decisions, caveats
 ├── manuscript/       # LaTeX manuscript
 ├── ref/              # References, BibTeX, and literature notes
 ├── results/          # Local generated outputs; ignored by Git for now
 ├── CLAUDE.md
 └── .github/copilot-instructions.md
 ```
+
+### Notes (`note/`)
+
+- `note/` holds **project-process thinking**: open questions, design decisions,
+  identifiability caveats, dead ends, and "why we chose X" rationale that arises
+  during the work but is not a finished method spec.
+- Distinct from `methods/` (polished method/design documents) and `ref/`
+  (external literature). A note may later graduate into `methods/` or the
+  manuscript once settled.
+- One topic per Markdown file, `snake_case` filename, with a short purpose line
+  at the top and the date. Link related notes/methods by relative path.
 
 ## Reproducible Analysis Rules
 
@@ -91,6 +103,21 @@ PSS-Net/
 - Use `\citep` and `\citet` consistently with `natbib`.
 - For biological examples, italicize Latin species names and give abbreviations
   at first use.
+- Target-journal formatting standard: follow the conventions of *Nature* (and
+  Nature-family journals such as *Nature Communications* / *Nature Methods*) and
+  of *Bioinformatics* (Oxford). When their conventions differ, default to the
+  *Nature* style for the main text and figures, and note the *Bioinformatics*
+  alternative where relevant. Concretely:
+  - Concise, results-forward abstract; structured numbered references in the
+    journal's citation style (author–year here via `natbib`, switch to the
+    journal style at submission).
+  - Main text kept short with methods/derivations in a Methods or Supplementary
+    section, per Nature-family structure.
+  - Figures: self-contained captions, panel labels (a, b, c), SI units, sans-serif
+    figure fonts; avoid chartjunk.
+  - Follow each journal's word/figure limits and abbreviation rules; define every
+    abbreviation at first use in both abstract and main text.
+  See the `manuscript-style` skill for the enforced checklist.
 
 ## Current Formal Entry Points
 
