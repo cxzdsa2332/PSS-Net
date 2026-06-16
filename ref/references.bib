@@ -240,6 +240,20 @@
 % Rongling Wu 课题组相关工作（ODE/qdODE 静态数据网络重构谱系）
 %==============================================================================
 
+% ===== 多任务学习复杂网络（非线性 ODE）=====
+% 实现思路与 v0.1.txt 基本一致：构建大的块对角设计矩阵做联合（多任务）估计；
+% 移植到本项目时需注意中心化（消除截距/列均值）以保持稳态方程的可识别性。
+@article{dong2026multitask,
+  author  = {Dong, Ang and Fa, Changjian and Li, Zhifan and Yau, Shing-Tung and
+             Wu, Rongling},
+  title   = {Multi-task Learning of Complex Networks via Nonlinear Ordinary
+             Differential Equations},
+  journal = {Communications Physics},
+  year    = {2026},
+  doi     = {10.1038/s42005-026-02687-4},
+  note    = {\url{https://www.nature.com/articles/s42005-026-02687-4}}
+}
+
 % ===== idopNetwork：从静态空间丰度数据重构有向物种互作网络（qdODE + LASSO）=====
 % 与本工作最接近的同组方法：同样从静态/稳态丰度推断有向互作网络，
 % 用 allometric power-curve + qdODE 解耦各物种独立/依赖成分。

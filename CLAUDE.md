@@ -83,6 +83,33 @@ PSS-Net/
   edges.
 - Work node-wise: build one design matrix per target node and avoid unnecessary
   block-diagonal mega-design matrices in implementation.
+  - Related prior art: the multi-task block-diagonal construction in
+    `dong2026multitask` (Communications Physics 2026,
+    https://www.nature.com/articles/s42005-026-02687-4) and the exploratory
+    `ref/v0.1.txt` both assemble one large block-diagonal design matrix and solve
+    all nodes jointly. That is mathematically equivalent to the node-wise loop;
+    if reusing that style, the key caveat is **centering** (remove per-column /
+    intercept means so `f_ji(0)=0` and the steady-state equation stay
+    identifiable). We default to the node-wise loop for efficiency.
+  - Fixed grouping for the joint block-diagonal solve: with the stacked design
+    `X = I_p ⊗ Psi_cs`, the ADSIHT group vector must be **`p*p` groups, each
+    repeated `M` times** — one group per `(target, source)` block, i.e.
+    `group = rep(1:(p*p), each = M)` (the v0.1.txt / `dong2026multitask` scheme).
+    Do NOT group a source across all targets (`rep(rep(1:p, each=M), times=p)`):
+    that makes each group size `p*M`, and ADSIHT's within-group sparsity then
+    floods false positives (empirically MCC collapses to ~0).
+  - Empirical note (`sim_script/pss_net_scalefree.R` vs
+    `pss_net_joint_smalln.R`; see `note/joint_vs_nodewise_structure.md`): whether
+    the joint solve (correct `p*p` grouping) beats node-wise is
+    **structure-dependent**. On **scale-free / hub networks** joint is
+    consistently better in both edge MCC and hub identification (out-degree rank
+    correlation), because global DSIC accumulates the repeated weak signal of hub
+    sources shared across many target tasks (e.g. p=50, N=24: MCC 0.20 → 0.23,
+    hub Spearman 0.25 → 0.36). On **homogeneous / uniform-degree networks** the
+    two tie (joint only trades higher precision for lower recall). Joint is far
+    more expensive (dense `I_p ⊗ Psi`; infeasible memory at p=100), so node-wise
+    stays the default; prefer joint when the network is heterogeneous (hubs) and
+    `N` is small.
 - Use no-intercept basis functions so that `f_ji(0)=0` is respected.
 - Center and scale the design matrix before sparse regression; recover the
   intercept from the uncentered steady-state equation.
