@@ -44,13 +44,14 @@ method section is in `manuscript/sections/02_method.tex`.
 
 | Path | Purpose |
 |------|---------|
-| `sim_script/` | Formal simulation and inference scripts. Scripts here generate numeric CSV outputs only. |
+| `sim_script/` | Formal simulation and inference scripts. Scripts here generate numeric CSV outputs only; current subfolders follow the three manuscript simulation goals in `sim_script/simulation_plan.md`. |
 | `sim_script/manual/` | Exploratory, one-off, or historical scripts. These may mix calculation and plotting and are not formal reproduction entry points. |
-| `analysis_script/` | Plotting and summary scripts that read `results/sim_results/` and write figures/tables. |
+| `analysis_script/` | Plotting and summary scripts that read `results/sim_results/` and write figures/tables. New publication panels should use `Fig1a_`-style names, with optional figure-level subfolders once the panel scripts grow. |
 | `methods/` | Method notes and design documents. |
 | `manuscript/` | LaTeX manuscript project. |
 | `data/` | Dataset notes and future real-data inputs. |
-| `ref/` | References, BibTeX, and literature notes. |
+| `ref/` | References, BibTeX, external benchmark-method notes, and literature notes. |
+| `sup/` | Supplementary simulation plans and future supplemental outputs, especially misspecification and sensitivity analyses. |
 | `results/` | Local generated outputs. This directory is ignored by Git for now. |
 | `CLAUDE.md` | Project-level agent instructions. |
 | `.github/copilot-instructions.md` | Copilot mirror of `CLAUDE.md`; keep identical. |
@@ -72,6 +73,12 @@ Analysis scripts read those outputs and create figures/tables:
 ```bash
 Rscript analysis_script/plot_design_curves.R
 Rscript analysis_script/summarize_mcc_comparison.R
+```
+
+The current manuscript simulation roadmap is maintained in:
+
+```bash
+sim_script/simulation_plan.md
 ```
 
 Generated outputs are written under:

@@ -30,7 +30,8 @@ PSS-Net/
 ├── methods/          # Method notes and design documents
 ├── note/             # Project-process thinking: open questions, decisions, caveats
 ├── manuscript/       # LaTeX manuscript
-├── ref/              # References, BibTeX, and literature notes
+├── sup/              # Supplementary simulation plans and future supplemental outputs
+├── ref/              # References, BibTeX, benchmark-method notes, and literature notes
 ├── results/          # Local generated outputs; ignored by Git for now
 ├── CLAUDE.md
 └── .github/copilot-instructions.md
@@ -103,10 +104,11 @@ PSS-Net/
     the joint solve (correct `p*p` grouping) beats node-wise is
     **structure-dependent**. On **scale-free / hub networks** joint is
     consistently better in both edge MCC and hub identification (out-degree rank
-    correlation), because global DSIC accumulates the repeated weak signal of hub
-    sources shared across many target tasks (e.g. p=50, N=24: MCC 0.20 → 0.23,
-    hub Spearman 0.25 → 0.36). On **homogeneous / uniform-degree networks** the
-    two tie (joint only trades higher precision for lower recall). Joint is far
+    correlation), plausibly because the global DSIC criterion pools model
+    complexity and noise-selection decisions across many target tasks (e.g.
+    p=50, N=24: MCC 0.20 -> 0.23, hub Spearman 0.25 -> 0.36). On
+    **homogeneous / uniform-degree networks** the two tie (joint only trades
+    higher precision for lower recall). Joint is far
     more expensive (dense `I_p ⊗ Psi`; infeasible memory at p=100), so node-wise
     stays the default; prefer joint when the network is heterogeneous (hubs) and
     `N` is small.
