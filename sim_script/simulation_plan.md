@@ -1,6 +1,6 @@
 # PSS-Net 模拟研究规划
 
-本文档用于把正式模拟脚本组织成论文级模拟路线。当前主文建议围绕三张多面板图展开：图 1 证明 PSS-Net 的可识别性与基础恢复能力，图 2 证明样本复杂度与扰动设计价值，图 3 证明鲁棒性、结构依赖与外部 benchmark。模型错设与敏感性分析放入 `sup/`；真实数据作为后续 case study，不混入模拟脚本。
+本文档用于把正式模拟脚本组织成论文级模拟路线。当前主文建议围绕三张多面板图展开：图 1 证明 PSS-Net 的可识别性与基础恢复能力，并在视觉上明确真实生成机制是 ODE 动力学、PSS 数据只是稳态切片；图 2 证明样本复杂度与扰动设计价值；图 3 证明鲁棒性、结构依赖与外部 benchmark。模型错设与敏感性分析放入 `sup/`；真实数据作为后续 case study，不混入模拟脚本。
 
 ## 总体原则
 
@@ -14,51 +14,21 @@
 
 ## 图 1：基础可识别性与核心估计器
 
-目标：证明 PSS-Net 恢复的是稳态耦合方程，而不是完整瞬态动力学；同时展示 ADSIHT 相对当前内部基线的优势。
+目标：先展示 PSS-Net 的数据来源是 ODE 动力系统，而不是静态相关样本；再说明在扰动后达到稳态时，ODE 可转化为 PSS-Net 使用的稳态约束。图 1 中可用加性 ODE 与 gLV ODE 作为两个示例：真实系统沿轨迹演化，扰动改变最终稳态，实际测量值是每个扰动条件下的 `x*` 与已知 `u`。在此基础上，再展示 PSS-Net 恢复稳态耦合方程、可识别边界和 ADSIHT 的基础恢复能力。
 
 对应文件夹：`sim_script/01_foundation_recovery/`
 
-### Fig1a_concept_workflow
+模拟数据简述：主要使用可控稀疏 ODE 系统生成扰动稳态数据；观测对象为每个扰动条件下的稳态测量值 `x*` 与已知扰动输入 `u`。图 1 的动力学展示包含加性 ODE `dx/dt = F(x) + u` 和乘性 gLV ODE 两个示例。内部基线比较使用同一批稳态样本、同一候选函数库和同一真实网络。可识别性面板展示 PSS 能识别稳态函数形状，但不能单独恢复完整瞬态机制。
 
-- 子图问题：PSS 数据如何从“扰动输入 + 稳态响应”转化为可解释的有向耦合网络？
-- 当前代码：`sim_script/manual/plot_pss_concept.R`
-- 当前输出：`results/figure/pss_concept_diagram.pdf`、`results/figure/pss_concept_diagram.png`
-- 状态：已有探索版。若进入正式主图，建议迁移或重写为 `analysis_script/Fig1a_concept_workflow.R`。
+视觉规则：Fig1 当前以 `sim_script/01_foundation_recovery/Fig1.R` 为准。脚本使用 `standard0.R` 的 8 节点历史参数，生成加性线性 ODE 与乘性 gLV ODE 的轨迹；baseline 从统一初始状态出发，single-node input 与 mixed input 从各自模型的 baseline steady state 出发。稳态采样用黑色垂直虚线标注，加性 ODE 与 gLV ODE 使用不同浅色背景，节点名直接标在线末端，不使用 ggplot 图例。Fig1b 不加入机制示意，只展示稳态函数形状与定量 BIC 支持。
 
-### Fig1b_glv_steady_state_equivalence
-
-- 子图问题：乘性 gLV 在正稳态下是否严格满足 PSS-Net 使用的加性稳态方程？
-- 当前代码：`sim_script/01_foundation_recovery/pss_net_glv_ss.R`
-- 当前结果：`results/sim_results/glv_ss_verification.csv`
-- 建议正式绘图代码：`analysis_script/Fig1b_glv_steady_state_equivalence.R`
-- 状态：数值模拟已有，绘图代码缺失。
-
-### Fig1c_adsiht_vs_internal_baselines
-
-- 子图问题：双稀疏 ADSIHT 是否优于 group lasso 等内部结构化稀疏基线？
-- 当前代码：`sim_script/01_foundation_recovery/pss_net_compare.R`
-- 当前结果：`results/sim_results/mcc_comparison.csv`
-- 现有汇总代码：`analysis_script/summarize_mcc_comparison.R`
-- 建议正式绘图代码：`analysis_script/Fig1c_adsiht_vs_internal_baselines.R`
-- 状态：数值模拟与表格汇总已有，主图绘图代码缺失。
-- 后续增强：加入 rank-based AUPR/AUROC；当前结果主要是阈值化 MCC、precision、recall、F1、JacRMSE。
-
-### Fig1d_identifiability_boundary
-
-- 子图问题：PSS 稳态数据能否区分乘性 gLV 与加性线性模型？能否检测非线性边函数？
-- 当前代码：`sim_script/01_foundation_recovery/pss_net_discriminate.R`
-- 当前结果：`results/sim_results/discriminate_gof.csv`
-- 建议正式绘图代码：`analysis_script/Fig1d_identifiability_boundary.R`
-- 状态：数值模拟已有，绘图代码缺失。
-- 重点解释：PSS 可识别稳态函数形状，但不能仅凭稳态区分乘性 gLV 与加性线性动力学。
-
-### Fig1e_representative_network_recovery
-
-- 子图问题：在一个代表性重复中，真实网络和 PSS-Net 推断网络的 TP、FP、FN、方向、符号如何对应？
-- 当前代码：缺失。
-- 建议模拟/提取代码前缀：`sim_script/01_foundation_recovery/Fig1e_representative_network_recovery_data.R`
-- 建议绘图代码：`analysis_script/Fig1e_representative_network_recovery.R`
-- 状态：缺失。需要从 `pss_net_compare.R` 或 `pss_net_glv_ss.R` 中保存单次 seed 的真实邻接、估计邻接、边权和符号。
+| 子图 | 要做什么 | 对应文件 / 对象 | 当前状态 |
+|------|----------|-----------------|----------|
+| `Fig1a_ode_to_pss_measurement` | 展示 ODE 动力学如何在扰动下产生 PSS 测量值 `(x*, u)`。当前为 2 行 x 3 列：上排 `Additive ODE`，下排 `gLV ODE`；列为 `baseline u = 0`、`single-node input`、`mixed input`。single-node 与 mixed input 从 baseline steady state 出发；黑色垂直虚线为 PSS 采样时间 `t = 20`，终点圆点为 `x*`。 | `sim_script/01_foundation_recovery/Fig1.R` 中 `Fig1a`、`Fig1a_legend`。历史探索图仍保留在 `sim_script/manual/plot_pss_concept.R`，但不作为当前 Fig1a 代码依据。 | 初版完成。脚本只生成 R 图对象，暂不保存输出；后续用于 patchwork 拼图。 |
+| `Fig1b_steady_state_function_identifiability` | 展示 PSS 不能区分等价线性机制，但能区分真正非线性的稳态函数结构。当前左侧为代表性边的稳态函数形状，右侧为加入二次基函数后的 BIC gain。 | `sim_script/01_foundation_recovery/Fig1.R` 中 `Fig1b_function_shape`、`Fig1b_identifiability`、`Fig1b`。其中 `Fig1b <- Fig1b_function_shape | Fig1b_identifiability`（若 `patchwork` 可用）。相关批量验证：`pss_net_glv_ss.R` 输出 `results/sim_results/glv_ss_verification.csv`。 | 初版完成。当前模拟中 linear additive 与 standard gLV 的 BIC gain 为负，nonlinear additive 为正；脚本只生成 R 图对象，暂不保存输出。 |
+| `Fig1c_adsiht_vs_internal_baselines` | 比较 ADSIHT 与 group lasso 等内部结构化稀疏基线；建议旁边放小型组稀疏/设计矩阵示意。 | 模拟：`sim_script/01_foundation_recovery/pss_net_compare.R`。结果：`results/sim_results/mcc_comparison.csv`。现有汇总：`analysis_script/summarize_mcc_comparison.R`。建议绘图：`analysis_script/Fig1c_adsiht_vs_internal_baselines.R`。 | 数值模拟与表格汇总已有，主图绘图缺失。后续补 AUPR/AUROC。 |
+| `Fig1d_identifiability_boundary` | 展示 PSS 可识别稳态函数形状，但不能仅凭稳态区分乘性 gLV 与加性线性动力学；可画 linear/quadratic/saturating 边函数与 GOF。 | 模拟：`sim_script/01_foundation_recovery/pss_net_discriminate.R`。结果：`results/sim_results/discriminate_gof.csv`。建议绘图：`analysis_script/Fig1d_identifiability_boundary.R`。 | 数值模拟已有，绘图缺失。需要与 Fig1b 避免信息重复。 |
+| `Fig1e_representative_network_recovery` | 固定一个 seed，展示真实网络与推断网络的 TP、FP、FN、方向、符号和核心节点。 | 建议数据脚本：`sim_script/01_foundation_recovery/Fig1e_representative_network_recovery_data.R`。建议绘图：`analysis_script/Fig1e_representative_network_recovery.R`。 | 缺失。需要保存真实邻接、估计邻接、边权、边符号和节点度数。 |
 
 ## 图 2：样本复杂度与扰动设计
 
@@ -66,62 +36,14 @@
 
 对应文件夹：`sim_script/02_scaling_design/`
 
-### Fig2a_highdim_sample_complexity
-
-- 子图问题：网络恢复是否随重标度样本量 `N / (s log p)` 改善，不同维度 p 的曲线是否有近似坍缩？
-- 当前代码：`sim_script/02_scaling_design/pss_net_highdim.R`
-- 当前结果：`results/sim_results/highdim_recovery.csv`
-- 建议正式绘图代码：`analysis_script/Fig2a_highdim_sample_complexity.R`
-- 状态：数值模拟已有，绘图代码缺失。
-- 后续增强：增加 R、补 AUPR/AUROC，并记录失败率。
-
-### Fig2b_design_linear
-
-- 子图问题：线性稳态系统中，random、maximin、D-optimal 扰动设计在固定预算 N 下谁更有效？
-- 当前代码：`sim_script/02_scaling_design/pss_net_design.R`
-- 当前结果：`results/sim_results/design_comparison.csv`
-- 现有绘图代码：`analysis_script/plot_design_curves.R`
-- 建议正式绘图代码：`analysis_script/Fig2b_design_linear.R`
-- 状态：数值模拟与通用绘图已有；建议拆出正式面板脚本或在统一 Fig2 脚本中调用。
-
-### Fig2c_design_nonlinear
-
-- 子图问题：非线性互作下，为什么在扰动空间均匀采样不等于在特征空间信息最优？
-- 当前代码：`sim_script/02_scaling_design/pss_net_design_nl.R`
-- 当前结果：`results/sim_results/design_nl_comparison.csv`
-- 现有绘图代码：`analysis_script/plot_design_curves.R`
-- 建议正式绘图代码：`analysis_script/Fig2c_design_nonlinear.R`
-- 状态：数值模拟与通用绘图已有；建议拆出正式面板脚本或在统一 Fig2 脚本中调用。
-
-### Fig2d_design_strong_nonlinear
-
-- 子图问题：强非线性互作下，线性化 D-optimal 打分的优势和局限在哪里？
-- 当前代码：`sim_script/02_scaling_design/pss_net_design_nl_seq.R`
-- 当前结果：`results/sim_results/design_nl_seq_comparison.csv`
-- 现有绘图代码：`analysis_script/plot_design_curves.R`
-- 建议正式绘图代码：`analysis_script/Fig2d_design_strong_nonlinear.R`
-- 状态：数值模拟与通用绘图已有；建议拆出正式面板脚本或在统一 Fig2 脚本中调用。
-
-### Fig2e_oracle_vs_estimated_design
-
-- 子图问题：当前 D-optimal 是否依赖 oracle 真模型？真实可行的 pilot-estimated D-optimal 与 oracle D-optimal 差多少？
-- 当前代码：缺失。
-- 建议模拟代码前缀：`sim_script/02_scaling_design/Fig2e_oracle_vs_estimated_design.R`
-- 建议绘图代码：`analysis_script/Fig2e_oracle_vs_estimated_design.R`
-- 状态：缺失。
-- 必要设计：
-  - oracle D-optimal：使用真实稳态映射或真实局部 Jacobian，作为上界；
-  - pilot-estimated D-optimal：先随机施加少量扰动，估计 surrogate/Jacobian，再序贯更新设计；
-  - maximin 与 random：非自适应对照。
-
-### Fig2f_targeted_design_tradeoff
-
-- 子图问题：若先验知道 hub，集中扰动 hub 是否提升 hub 相关边恢复？是否牺牲整体网络？
-- 当前结果：`results/sim_results/targeted_design.csv`
-- 当前代码：缺失，原探索脚本已删除；结论记录在 `note/targeted_perturbation_tradeoff.md`
-- 建议恢复代码前缀：`sim_script/02_scaling_design/Fig2f_targeted_design_tradeoff.R`
-- 建议绘图代码：`analysis_script/Fig2f_targeted_design_tradeoff.R`
-- 状态：结果文件存在，但正式模拟代码缺失。进入主图前必须恢复脚本；否则放补充或 discussion。
+| 子图 | 要做什么 | 对应文件 / 对象 | 当前状态 |
+|------|----------|-----------------|----------|
+| `Fig2a_highdim_sample_complexity` | 展示网络恢复是否随重标度样本量 `N / (s log p)` 改善，不同维度 `p` 的曲线是否近似坍缩。 | 模拟：`sim_script/02_scaling_design/pss_net_highdim.R`。结果：`results/sim_results/highdim_recovery.csv`。建议绘图：`analysis_script/Fig2a_highdim_sample_complexity.R`。 | 数值模拟已有，绘图缺失。后续增加重复数、AUPR/AUROC 和失败率。 |
+| `Fig2b_design_linear` | 在线性稳态系统中比较 random、maximin、D-optimal 扰动设计的信息效率。 | 模拟：`sim_script/02_scaling_design/pss_net_design.R`。结果：`results/sim_results/design_comparison.csv`。现有绘图：`analysis_script/plot_design_curves.R`。建议正式面板：`analysis_script/Fig2b_design_linear.R`。 | 数值模拟与通用绘图已有；建议拆出正式面板脚本。 |
+| `Fig2c_design_nonlinear` | 非线性互作下展示扰动空间均匀采样不等于特征空间信息最优。 | 模拟：`sim_script/02_scaling_design/pss_net_design_nl.R`。结果：`results/sim_results/design_nl_comparison.csv`。现有绘图：`analysis_script/plot_design_curves.R`。建议正式面板：`analysis_script/Fig2c_design_nonlinear.R`。 | 数值模拟与通用绘图已有；建议拆出正式面板脚本。 |
+| `Fig2d_design_strong_nonlinear` | 强非线性互作下展示线性化 D-optimal 打分的优势和局限。 | 模拟：`sim_script/02_scaling_design/pss_net_design_nl_seq.R`。结果：`results/sim_results/design_nl_seq_comparison.csv`。现有绘图：`analysis_script/plot_design_curves.R`。建议正式面板：`analysis_script/Fig2d_design_strong_nonlinear.R`。 | 数值模拟与通用绘图已有；建议拆出正式面板脚本。 |
+| `Fig2e_oracle_vs_estimated_design` | 区分 oracle D-optimal 与 realistic pilot-estimated D-optimal，评估可行序贯设计损失。 | 建议模拟：`sim_script/02_scaling_design/Fig2e_oracle_vs_estimated_design.R`。建议绘图：`analysis_script/Fig2e_oracle_vs_estimated_design.R`。 | 缺失。需要包含 oracle、pilot-estimated、maximin、random。 |
+| `Fig2f_targeted_design_tradeoff` | 若先验知道 hub，评估集中扰动 hub 是否提高 hub 相关边恢复、是否牺牲整体网络。 | 现有结果：`results/sim_results/targeted_design.csv`。结论记录：`note/targeted_perturbation_tradeoff.md`。建议恢复模拟：`sim_script/02_scaling_design/Fig2f_targeted_design_tradeoff.R`。建议绘图：`analysis_script/Fig2f_targeted_design_tradeoff.R`。 | 结果文件存在但正式模拟代码缺失；进入主图前必须恢复脚本，否则放补充或 discussion。 |
 
 ## 图 3：鲁棒性、网络结构与外部 benchmark
 
@@ -129,65 +51,14 @@
 
 对应文件夹：`sim_script/03_robustness_benchmarks/`
 
-### Fig3a_external_benchmark_main
-
-- 子图问题：在匹配模拟 PSS 数据上，PSS-Net 相比外部网络推断方法表现如何？
-- 当前代码：缺失。
-- 参考方法清单：`ref/external_benchmark_methods.md`
-- 建议模拟代码前缀：`sim_script/03_robustness_benchmarks/Fig3a_external_benchmark_main.R`
-- 建议绘图代码：`analysis_script/Fig3a_external_benchmark_main.R`
-- 状态：缺失，优先级最高。
-- 最低方法集：
-  - PSS-Net / ADSIHT；
-  - lasso 或 elastic net，同一稳态方程；
-  - group lasso，同一稳态方程；
-  - STLSQ/SINDy-style library regression；
-  - GENIE3 或 GRNBoost2，state-only directed black-box；
-  - correlation 或 graphical lasso，association baseline。
-- 指标：MCC、AUPR/AUROC、precision、recall、sign accuracy、runtime、failure rate。
-
-### Fig3b_method_capability_matrix
-
-- 子图问题：不同方法使用什么输入、输出什么网络、是否有方向、是否能估计非线性边函数、是否需要时序？
-- 当前代码：缺失。
-- 参考文档：`ref/external_benchmark_methods.md`
-- 建议绘图代码：`analysis_script/Fig3b_method_capability_matrix.R`
-- 状态：缺失。可先用手工 CSV 或 tibble 构建。
-
-### Fig3c_compositional_data_limitation
-
-- 子图问题：绝对丰度、相对丰度、CLR、相对丰度乘含噪总量对 PSS-Net 网络恢复有什么影响？
-- 当前代码：`sim_script/03_robustness_benchmarks/pss_net_compositional.R`
-- 当前结果：`results/sim_results/compositional_recovery.csv`
-- 建议正式绘图代码：`analysis_script/Fig3c_compositional_data_limitation.R`
-- 状态：数值模拟已有，绘图代码缺失。
-- 后续增强：补 total-biomass CV 扫描，建议放 supplement 或作为 Fig3c 的 inset。
-
-### Fig3d_scalefree_joint_vs_nodewise
-
-- 子图问题：scale-free / hub-like 网络中，joint block-diagonal estimation 是否比 node-wise 更好？
-- 当前代码：`sim_script/03_robustness_benchmarks/pss_net_scalefree.R`
-- 当前结果：`results/sim_results/scalefree_compare.csv`
-- 建议正式绘图代码：`analysis_script/Fig3d_scalefree_joint_vs_nodewise.R`
-- 状态：数值模拟已有，绘图代码缺失。
-- 注意：当前 R 偏少，且曾出现 NA；主文使用前需要增加重复数、明确失败处理。
-
-### Fig3e_scalefree_hub_recovery
-
-- 子图问题：joint estimation 是否更稳定地恢复核心 hub 排名？
-- 当前代码：`sim_script/03_robustness_benchmarks/pss_net_scalefree.R`
-- 当前结果：`results/sim_results/scalefree_compare.csv`
-- 建议正式绘图代码：`analysis_script/Fig3e_scalefree_hub_recovery.R`
-- 状态：数值模拟已有，绘图代码缺失。
-- 指标：estimated out-degree vs true out-degree Spearman、top-k hit rate。
-
-### Fig3f_uniform_negative_control
-
-- 子图问题：joint estimation 的优势是否依赖 hub-like 结构？在均匀网络下是否只是 precision/recall trade-off？
-- 当前代码：`sim_script/03_robustness_benchmarks/pss_net_joint_smalln.R`
-- 当前结果：`results/sim_results/joint_smalln.csv`
-- 建议正式绘图代码：`analysis_script/Fig3f_uniform_negative_control.R`
-- 状态：数值模拟已有，绘图代码缺失。
+| 子图 | 要做什么 | 对应文件 / 对象 | 当前状态 |
+|------|----------|-----------------|----------|
+| `Fig3a_external_benchmark_main` | 在匹配模拟 PSS 数据上，比较 PSS-Net 与外部网络推断方法。最低方法集：PSS-Net/ADSIHT、lasso/elastic net、group lasso、STLSQ/SINDy-style、GENIE3/GRNBoost2、correlation/graphical lasso。 | 参考：`ref/external_benchmark_methods.md`。建议模拟：`sim_script/03_robustness_benchmarks/Fig3a_external_benchmark_main.R`。建议绘图：`analysis_script/Fig3a_external_benchmark_main.R`。 | 缺失，优先级最高。指标应包含 MCC、AUPR/AUROC、precision、recall、sign accuracy、runtime、failure rate。 |
+| `Fig3b_method_capability_matrix` | 建立方法能力矩阵：输入类型、输出网络、是否有方向、是否估计非线性边函数、是否需要时序、是否处理 compositional data。 | 参考：`ref/external_benchmark_methods.md`。建议绘图：`analysis_script/Fig3b_method_capability_matrix.R`；可先用手工 CSV/tibble。 | 缺失。适合作为 Fig3 的解释性面板。 |
+| `Fig3c_compositional_data_limitation` | 展示 absolute abundance、relative abundance、CLR、relative abundance times noisy total 对恢复的影响。 | 模拟：`sim_script/03_robustness_benchmarks/pss_net_compositional.R`。结果：`results/sim_results/compositional_recovery.csv`。建议绘图：`analysis_script/Fig3c_compositional_data_limitation.R`。 | 数值模拟已有，绘图缺失。后续补 total-biomass CV sweep。 |
+| `Fig3d_scalefree_joint_vs_nodewise` | 在 scale-free / hub-like 网络中比较 joint block-diagonal estimation 与 node-wise estimation。 | 模拟：`sim_script/03_robustness_benchmarks/pss_net_scalefree.R`。结果：`results/sim_results/scalefree_compare.csv`。建议绘图：`analysis_script/Fig3d_scalefree_joint_vs_nodewise.R`。 | 数值模拟已有，绘图缺失。当前重复数偏少，主文使用前需增加 R 并明确 NA/失败处理。 |
+| `Fig3e_scalefree_hub_recovery` | 评估 joint estimation 是否更稳定恢复核心 hub 排名。指标包括 estimated out-degree vs true out-degree Spearman、top-k hit rate。 | 模拟：`sim_script/03_robustness_benchmarks/pss_net_scalefree.R`。结果：`results/sim_results/scalefree_compare.csv`。建议绘图：`analysis_script/Fig3e_scalefree_hub_recovery.R`。 | 数值模拟已有，绘图缺失。可与 Fig3d 共用同一数据。 |
+| `Fig3f_uniform_negative_control` | 证明 joint estimation 的优势依赖 hub-like 结构；在均匀网络下主要是 precision/recall trade-off。 | 模拟：`sim_script/03_robustness_benchmarks/pss_net_joint_smalln.R`。结果：`results/sim_results/joint_smalln.csv`。建议绘图：`analysis_script/Fig3f_uniform_negative_control.R`。 | 数值模拟已有，绘图缺失。 |
 
 ## 补充模拟
 
