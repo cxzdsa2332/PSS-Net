@@ -60,11 +60,11 @@ method section is in `manuscript/sections/02_method.tex`.
 Formal simulations write only numeric outputs:
 
 ```bash
-Rscript sim_script/pss_net_compare.R
-Rscript sim_script/pss_net_design.R
-Rscript sim_script/pss_net_design_nl.R
-Rscript sim_script/pss_net_design_nl_seq.R
-Rscript sim_script/pss_net_glv_ss.R
+Rscript sim_script/01_foundation_recovery/pss_net_compare.R
+Rscript sim_script/02_scaling_design/pss_net_design.R
+Rscript sim_script/02_scaling_design/pss_net_design_nl.R
+Rscript sim_script/02_scaling_design/pss_net_design_nl_seq.R
+Rscript sim_script/01_foundation_recovery/pss_net_glv_ss.R
 ```
 
 Analysis scripts read those outputs and create figures/tables:

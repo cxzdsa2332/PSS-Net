@@ -13,7 +13,7 @@ output_txt <- "results/table/mcc_comparison.txt"
 
 if (!file.exists(input_csv)) {
   stop("Missing input file: ", input_csv,
-       "\nRun sim_script/pss_net_compare.R first.")
+       "\nRun sim_script/01_foundation_recovery/pss_net_compare.R first.")
 }
 
 df_all <- read.csv(input_csv, stringsAsFactors = FALSE)

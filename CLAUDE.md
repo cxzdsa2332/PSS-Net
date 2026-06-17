@@ -98,8 +98,8 @@ PSS-Net/
     Do NOT group a source across all targets (`rep(rep(1:p, each=M), times=p)`):
     that makes each group size `p*M`, and ADSIHT's within-group sparsity then
     floods false positives (empirically MCC collapses to ~0).
-  - Empirical note (`sim_script/pss_net_scalefree.R` vs
-    `pss_net_joint_smalln.R`; see `note/joint_vs_nodewise_structure.md`): whether
+  - Empirical note (`sim_script/03_robustness_benchmarks/pss_net_scalefree.R` vs
+    `sim_script/03_robustness_benchmarks/pss_net_joint_smalln.R`; see `note/joint_vs_nodewise_structure.md`): whether
     the joint solve (correct `p*p` grouping) beats node-wise is
     **structure-dependent**. On **scale-free / hub networks** joint is
     consistently better in both edge MCC and hub identification (out-degree rank
@@ -148,13 +148,27 @@ PSS-Net/
 
 ## Current Formal Entry Points
 
-Formal simulation scripts:
+Formal simulation scripts are grouped by publication-level simulation goal; see
+`sim_script/simulation_plan.md` for the manuscript-facing rationale.
 
-- `sim_script/pss_net_compare.R`
-- `sim_script/pss_net_design.R`
-- `sim_script/pss_net_design_nl.R`
-- `sim_script/pss_net_design_nl_seq.R`
-- `sim_script/pss_net_glv_ss.R`
+Goal 1: foundation, identifiability, and baseline recovery:
+
+- `sim_script/01_foundation_recovery/pss_net_glv_ss.R`
+- `sim_script/01_foundation_recovery/pss_net_discriminate.R`
+- `sim_script/01_foundation_recovery/pss_net_compare.R`
+
+Goal 2: sample complexity and perturbation design:
+
+- `sim_script/02_scaling_design/pss_net_highdim.R`
+- `sim_script/02_scaling_design/pss_net_design.R`
+- `sim_script/02_scaling_design/pss_net_design_nl.R`
+- `sim_script/02_scaling_design/pss_net_design_nl_seq.R`
+
+Goal 3: robustness, network structure, and method benchmarks:
+
+- `sim_script/03_robustness_benchmarks/pss_net_compositional.R`
+- `sim_script/03_robustness_benchmarks/pss_net_scalefree.R`
+- `sim_script/03_robustness_benchmarks/pss_net_joint_smalln.R`
 
 Formal analysis scripts:
 

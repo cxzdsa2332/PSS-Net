@@ -22,7 +22,7 @@ plot_design_curve <- function(input_csv, output_pdf, title, subtitle,
                               dopt_label = "Sequential D-optimal") {
   if (!file.exists(input_csv)) {
     stop("Missing input file: ", input_csv,
-         "\nRun the corresponding sim_script/pss_net_design*.R first.")
+         "\nRun the corresponding sim_script/02_scaling_design/pss_net_design*.R first.")
   }
 
   df <- read.csv(input_csv, stringsAsFactors = FALSE)

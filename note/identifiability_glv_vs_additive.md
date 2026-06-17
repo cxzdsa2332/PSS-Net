@@ -2,8 +2,8 @@
 
 **用途**：记录"PSS 稳态数据能/不能区分哪种生成机制"的思考与判别策略。
 **日期**：2026-06-16。相关：[../methods/sindy_ss_method.md](../methods/sindy_ss_method.md) §1.1、
-[../sim_script/pss_net_glv_ss.R](../sim_script/pss_net_glv_ss.R)、
-[../sim_script/pss_net_discriminate.R](../sim_script/pss_net_discriminate.R)。
+[../sim_script/01_foundation_recovery/pss_net_glv_ss.R](../sim_script/01_foundation_recovery/pss_net_glv_ss.R)、
+[../sim_script/01_foundation_recovery/pss_net_discriminate.R](../sim_script/01_foundation_recovery/pss_net_discriminate.R)。
 
 ## 核心结论
 
@@ -34,7 +34,7 @@ PSS 只用扰动稳态 $\{(x^{*(k)}, u^{(k)})\}$，由此：
 - 嵌套比较 M=1（线性/gLV 假设）vs M≥2（加二次/样条）：用 DSIC、BIC 或残差平方和下降。
 - 看 ADSIHT 选出的组内稀疏 $s_0$。
 - 画 $\hat f_{ji}(x_i)$ 看曲率。
-- 见判别模拟脚本 [../sim_script/pss_net_discriminate.R](../sim_script/pss_net_discriminate.R)
+- 见判别模拟脚本 [../sim_script/01_foundation_recovery/pss_net_discriminate.R](../sim_script/01_foundation_recovery/pss_net_discriminate.R)
   与 `results/sim_results/discriminate_gof.csv`。
 
 ## 判别模拟初步结果（2026-06-16，p=6，N=200，10 seeds）

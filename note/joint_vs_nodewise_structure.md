@@ -1,8 +1,8 @@
 # Note: 联合(块对角)估计 vs 逐节点——优劣取决于网络结构
 
 **用途**：记录"何时联合求解优于逐节点"的探索结论。
-**日期**：2026-06-17。相关：[../sim_script/pss_net_scalefree.R](../sim_script/pss_net_scalefree.R)
-（scale-free 正面）、[../sim_script/pss_net_joint_smalln.R](../sim_script/pss_net_joint_smalln.R)
+**日期**：2026-06-17。相关：[../sim_script/03_robustness_benchmarks/pss_net_scalefree.R](../sim_script/03_robustness_benchmarks/pss_net_scalefree.R)
+（scale-free 正面）、[../sim_script/03_robustness_benchmarks/pss_net_joint_smalln.R](../sim_script/03_robustness_benchmarks/pss_net_joint_smalln.R)
 （同质负对照）、`results/sim_results/scalefree_compare.csv`、CLAUDE.md Method Conventions。
 
 ## 设定

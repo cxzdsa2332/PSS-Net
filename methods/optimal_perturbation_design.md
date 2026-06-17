@@ -1,6 +1,6 @@
 # PSS-Net 创新点 A：最优扰动设计（Optimal Perturbation Design）
 
-**方法说明** · 对应实现：`sim_script/pss_net_design.R`
+**方法说明** · 对应实现：`sim_script/02_scaling_design/pss_net_design.R`
 
 ---
 
