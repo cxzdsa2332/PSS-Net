@@ -12,23 +12,24 @@
 
 所有正式模拟脚本应只生成数值结果，写入 `results/sim_results/`。主文图形由 `analysis_script/` 读取结果后生成。`sim_script/manual/` 仍保留探索性脚本，可以混合绘图和检查。
 
-## 图 1：基础可识别性与核心估计器
+## 图 1：PSS 数据来源、可识别边界与基础恢复能力
 
-目标：先展示 PSS-Net 的数据来源是 ODE 动力系统，而不是静态相关样本；再说明在扰动后达到稳态时，ODE 可转化为 PSS-Net 使用的稳态约束。图 1 中可用加性 ODE 与 gLV ODE 作为两个示例：真实系统沿轨迹演化，扰动改变最终稳态，实际测量值是每个扰动条件下的 `x*` 与已知 `u`。在此基础上，再展示 PSS-Net 恢复稳态耦合方程、可识别边界和 ADSIHT 的基础恢复能力。
+目标：图 1 作为方法主图，先把 PSS-Net 的数据对象说清楚：真实系统是 ODE 动力学，实验只观测每个扰动条件达到稳态后的 `(x*, u)`；随后展示 PSS 方程能识别稳态函数形状、但不能单独区分所有瞬态机制；最后用同一批可控模拟证明 node-wise ADSIHT 可以恢复函数形状和有向带符号网络，并在不同维度下保持合理的基础恢复能力。
 
 对应文件夹：`sim_script/01_foundation_recovery/`
 
-模拟数据简述：主要使用可控稀疏 ODE 系统生成扰动稳态数据；观测对象为每个扰动条件下的稳态测量值 `x*` 与已知扰动输入 `u`。图 1 的动力学展示包含加性 ODE `dx/dt = F(x) + u` 和乘性 gLV ODE 两个示例。内部基线比较使用同一批稳态样本、同一候选函数库和同一真实网络。可识别性面板展示 PSS 能识别稳态函数形状，但不能单独恢复完整瞬态机制。
+模拟数据简述：Fig1a-Fig1c 使用历史 8 节点设定和/或其高维扩展，展示 ODE 到 PSS 测量、稳态函数可识别性，以及 ADSIHT 与 group lasso 的基础比较。Fig1d-Fig1f 使用一个固定 10 节点非线性加性 ODE 系统，在 `N = 200` 个扰动稳态条件和 `SNR = 30` 的观测噪声下拟合 node-wise ADSIHT，用于展示动态效应分解、边函数形状恢复，以及真实网络与推断网络的并排比较。
 
-视觉规则：Fig1 当前以 `sim_script/01_foundation_recovery/Fig1.R` 为准。脚本使用 `standard0.R` 的 8 节点历史参数，生成加性线性 ODE 与乘性 gLV ODE 的轨迹；baseline 从统一初始状态出发，single-node input 与 mixed input 从各自模型的 baseline steady state 出发。稳态采样用黑色垂直虚线标注，加性 ODE 与 gLV ODE 使用不同浅色背景，节点名直接标在线末端，不使用 ggplot 图例。Fig1b 不加入机制示意，只展示稳态函数形状与定量 BIC 支持。
+视觉规则：Fig1 当前以 `sim_script/01_foundation_recovery/Fig1.R` 为准。Fig1a 使用浅色背景区分 additive ODE 与 gLV ODE，稳态采样用黑色垂直虚线标注，节点名直接标在线末端。Fig1b 使用稳态函数曲线、BIC gain 与 SNR 扫描说明可识别边界。Fig1d-Fig1e 采用 true vs ADSIHT 的实线/虚线对照。Fig1f 使用 igraph 绘制真实与推断网络，促进作用为红色，抑制作用为蓝色；推断网络中 TP/FP/FN 用线型和灰度辅助标记。
 
 | 子图 | 要做什么 | 对应文件 / 对象 | 当前状态 |
 |------|----------|-----------------|----------|
-| `Fig1a_ode_to_pss_measurement` | 展示 ODE 动力学如何在扰动下产生 PSS 测量值 `(x*, u)`。当前为 2 行 x 3 列：上排 `Additive ODE`，下排 `gLV ODE`；列为 `baseline u = 0`、`single-node input`、`mixed input`。single-node 与 mixed input 从 baseline steady state 出发；黑色垂直虚线为 PSS 采样时间 `t = 20`，终点圆点为 `x*`。 | `sim_script/01_foundation_recovery/Fig1.R` 中 `Fig1a`、`Fig1a_legend`。历史探索图仍保留在 `sim_script/manual/plot_pss_concept.R`，但不作为当前 Fig1a 代码依据。 | 初版完成。脚本只生成 R 图对象，暂不保存输出；后续用于 patchwork 拼图。 |
-| `Fig1b_steady_state_function_identifiability` | 展示 PSS 不能区分等价线性机制，但能区分真正非线性的稳态函数结构。当前左侧为代表性边的稳态函数形状，右侧为加入二次基函数后的 BIC gain。 | `sim_script/01_foundation_recovery/Fig1.R` 中 `Fig1b_function_shape`、`Fig1b_identifiability`、`Fig1b`。其中 `Fig1b <- Fig1b_function_shape | Fig1b_identifiability`（若 `patchwork` 可用）。相关批量验证：`pss_net_glv_ss.R` 输出 `results/sim_results/glv_ss_verification.csv`。 | 初版完成。当前模拟中 linear additive 与 standard gLV 的 BIC gain 为负，nonlinear additive 为正；脚本只生成 R 图对象，暂不保存输出。 |
-| `Fig1c_adsiht_vs_internal_baselines` | 比较 ADSIHT 与 group lasso 等内部结构化稀疏基线；建议旁边放小型组稀疏/设计矩阵示意。 | 模拟：`sim_script/01_foundation_recovery/pss_net_compare.R`。结果：`results/sim_results/mcc_comparison.csv`。现有汇总：`analysis_script/summarize_mcc_comparison.R`。建议绘图：`analysis_script/Fig1c_adsiht_vs_internal_baselines.R`。 | 数值模拟与表格汇总已有，主图绘图缺失。后续补 AUPR/AUROC。 |
-| `Fig1d_identifiability_boundary` | 展示 PSS 可识别稳态函数形状，但不能仅凭稳态区分乘性 gLV 与加性线性动力学；可画 linear/quadratic/saturating 边函数与 GOF。 | 模拟：`sim_script/01_foundation_recovery/pss_net_discriminate.R`。结果：`results/sim_results/discriminate_gof.csv`。建议绘图：`analysis_script/Fig1d_identifiability_boundary.R`。 | 数值模拟已有，绘图缺失。需要与 Fig1b 避免信息重复。 |
-| `Fig1e_representative_network_recovery` | 固定一个 seed，展示真实网络与推断网络的 TP、FP、FN、方向、符号和核心节点。 | 建议数据脚本：`sim_script/01_foundation_recovery/Fig1e_representative_network_recovery_data.R`。建议绘图：`analysis_script/Fig1e_representative_network_recovery.R`。 | 缺失。需要保存真实邻接、估计邻接、边权、边符号和节点度数。 |
+| `Fig1a_ode_to_pss_measurement` | 展示 ODE 动力学如何在扰动下产生 PSS 测量值 `(x*, u)`。当前为 additive ODE 与 gLV ODE 两类动力学，包含 baseline、single-node input 和 mixed input。 | `sim_script/01_foundation_recovery/Fig1.R` 中 `Fig1a`、`Fig1a_legend`。 | 初版完成。用于说明 PSS-Net 的观测对象是扰动稳态切片，而非时间序列。 |
+| `Fig1b_steady_state_function_identifiability` | 展示 PSS 不能区分等价线性机制，但能区分真正非线性的稳态函数结构；同时用 SNR 扫描展示非线性识别的噪声边界。 | `Fig1.R` 中 `Fig1b_function_shape`、`Fig1b_identifiability`、`Fig1b_noise_snr`、`Fig1b`、`snr_summary`。相关说明：`note/identifiability_glv_vs_additive.md`。 | 初版完成。当前结果支持：linear additive 与 standard gLV 不应被过度区分；真正 nonlinear additive 在足够 SNR 下可被识别。 |
+| `Fig1c_adsiht_vs_group_lasso_scaling` | 在 `p = 8, 30, 100` 下比较 node-wise ADSIHT 与 group lasso，展示 MCC、AUPRC、AUROC、`CoefL2` 和 `JacRMSE` 随 `N / (s log p)` 的变化。 | 模拟：`sim_script/01_foundation_recovery/Fig1c_adsiht_group_lasso_scaling.R`。结果：`results/sim_results/Fig1c_adsiht_group_lasso_scaling.csv`。绘图对象：`Fig1.R` 中 `Fig1c_method_scaling`、`Fig1c`。 | 初版完成。固定 `SNR = 30`，噪声按 `sigma_x = signal_scale / 30` 添加；当前 `R = 3`，主文前需增加重复数。 |
+| `Fig1d_effect_decomposition` | 在固定 10 节点非线性加性系统中，展示 ADSIHT 推断的 self effect 与 received regulation 沿扰动后轨迹积分后能重构目标节点状态变化。 | `Fig1.R` 中 `Fig1d`；同一代码块中保留禁用的 `Fig1d_dynamics` 用于后续拓展。 | 初版完成。强调函数估计结果可以回到动态效应解释层面，而不仅是静态边集。 |
+| `Fig1e_function_shape_recovery` | 展示同一 10 节点系统中，node-wise ADSIHT 对 self feedback 与 cross-node edge functions 的曲线恢复。 | `Fig1.R` 中 `Fig1e`。 | 初版完成。用于支撑 PSS-Net 能恢复稳态函数形状。 |
+| `Fig1f_true_vs_inferred_network` | 使用 igraph 并排绘制同一 10 节点系统的真实有向网络与 ADSIHT 推断网络。促进作用红色，抑制作用蓝色；推断图显示 TP、FP、FN 和 MCC。 | `Fig1.R` 中 `Fig1f`；最终总图对象为 `Fig1`。 | 初版完成。与 Fig1d/Fig1e 共用同一 seed、同一 `SNR = 30` 拟合结果，作为函数恢复到网络恢复的视觉总结。 |
 
 ## 图 2：样本复杂度与扰动设计
 
