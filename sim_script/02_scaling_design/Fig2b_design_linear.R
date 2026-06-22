@@ -1,55 +1,52 @@
 rm(list = ls())
 
 ################################################################################
-# pss_net_design.R  —  PSS-Net 创新点 A：最优扰动设计（Optimal Perturbation Design）
+# Fig2b_design_linear.R  —  Fig2b：线性稳态系统中的最优扰动设计
 #
 # 比较三种扰动设计策略在固定预算 N 下的网络恢复质量：
 #   (1) random   —  Uniform 随机扰动（现状基线）
 #   (2) maximin  —  u 空间贪心空间填充（Latin-hypercube 风格）
 #   (3) dopt     —  序贯 D-最优主动设计（本方法，eq.3 + Sherman-Morrison）
 #
-# 系统:  线性 GLV，稳态闭式  x*(u) = x_wt - B^{-1} u   (methods/optimal_perturbation_design.md eq.1)
+# 系统:  稀疏可加线性 ODE  dx_j/dt = r_j + sum_i a_ji x_i - gamma_j x_j + u_j，
+#        稳态闭式  x*(u) = (diag(gamma) - A)^{-1}(r + u)   (§1.1 (2')，与 Fig1c/Fig2a 一致)
 # 回归:  逐节点 ADSIHT（中心化 + 标准化），单项式基 M=2
 # 指标:  MCC / Precision / Recall / CoefL2 / JacRMSE，扫描 N，重复 R 个种子
 #
 # Input:   none（自生成模拟数据）
-# Output:  results/sim_results/design_comparison.csv  — 每 (strategy,N,seed) 指标
-# Plot:    analysis_script/plot_design_curves.R
+# Output:  results/sim_results/Fig2b_design_linear.csv  — 每 (strategy,N,seed) 指标
+# Plot:    sim_script/02_scaling_design/Fig2.R 中 Fig2b 对象
 ################################################################################
 
 suppressMessages({
   library(ADSIHT)
-  library(MASS)
 })
 
 set.seed(1)
 
 ## ---------------------------------------------------------------- 真值系统 ----
-# 生成稀疏线性 GLV：B = A_offdiag - diag(gamma)，Hurwitz 且 x_wt > 0
+# 生成稀疏可加线性 ODE：A 为 off-diagonal 互作，gamma 为自调节。对角占优
+# (gamma_j > sum_i |a_ji|) 保证 M = diag(gamma) - A 可逆且稳态稳定。
 make_system <- function(p = 8, n_in = 2, seed = 1) {
   set.seed(seed)
-  A <- matrix(0, p, p)                       # A[j,i]: i -> j 的互作强度
+  A <- matrix(0, p, p)                       # A[j,i]: i -> j 的可加线性互作强度
   for (j in seq_len(p)) {
     src <- sample(setdiff(seq_len(p), j), n_in)
+    # 较强互作区间：主动设计的增益依赖足够的耦合信号（弱耦合下三种设计持平）。
     A[j, src] <- runif(n_in, 0.3, 0.8) * sample(c(-1, 1), n_in, replace = TRUE)
   }
-  gamma <- runif(p, 2.0, 3.0)                 # 强自调节，保证稳定与正稳态
-  B <- A - diag(gamma)
-  # 保证 Hurwitz：实部全负；必要时加大自调节
-  while (max(Re(eigen(B, only.values = TRUE)$values)) > -0.2) {
-    gamma <- gamma + 0.5
-    B <- A - diag(gamma)
-  }
-  mu <- runif(p, 0.8, 1.6)                    # 内禀增长，使 x_wt > 0
-  x_wt <- as.vector(-solve(B, mu))
-  list(p = p, A = A, gamma = gamma, B = B, mu = mu, x_wt = x_wt,
+  gamma <- rowSums(abs(A)) + runif(p, 1.0, 1.5)  # 对角占优自调节
+  r <- runif(p, 0.8, 1.5)                     # 内禀项，使 x_wt > 0
+  M <- diag(gamma) - A                        # 稳态算子：M x* = r + u
+  x_wt <- as.vector(solve(M, r))
+  list(p = p, A = A, gamma = gamma, M = M, r = r, x_wt = x_wt,
        adj = (A != 0) * 1)                    # 真实邻接（行 j <- 列 i）
 }
 
-# 稳态闭式：x*(u) = -B^{-1}(mu + u)
+# 可加线性稳态：0 = r + A x - gamma x + u  =>  x*(u) = (diag(gamma) - A)^{-1}(r + u)
 steady_state <- function(sys, U) {
   # U: N x p 扰动矩阵；返回 N x p 稳态
-  -t(solve(sys$B, t(sweep(U, 2, -sys$mu, FUN = "+"))))  # = -B^{-1}(mu + U)
+  t(solve(sys$M, t(sweep(U, 2, sys$r, FUN = "+"))))   # = M^{-1}(r + U)
 }
 
 ## ------------------------------------------------------- 设计矩阵 / 基函数 ----
@@ -59,9 +56,14 @@ psi_row <- function(xvec) as.vector(sapply(xvec, function(x) x^(seq_len(M_ord)))
 aug_row <- function(xvec) c(1, psi_row(xvec))
 
 ## ------------------------------------------------- 三种扰动设计策略 ----
+# 扰动幅度范围放宽到 u ~ U[-0.4, 0.8]，给 D-最优更大的候选空间以体现设计增益
+# （噪声、基函数、横轴刻度仍与 Fig1c/Fig2a 对齐）。
+u_lo <- -0.4
+u_hi <- 0.8
+
 # 公共候选池
 make_pool <- function(p, n_pool = 4000) {
-  matrix(runif(n_pool * p, -0.4, 0.8), n_pool, p)
+  matrix(runif(n_pool * p, u_lo, u_hi), n_pool, p)
 }
 
 design_random <- function(sys, N, pool) {
@@ -136,9 +138,11 @@ infer_network <- function(sys, U, X) {
     fit <- tryCatch(
       ADSIHT(Psi_cs, matrix(rhs), group, ic.type = "dsic"),
       error = function(e) NULL)
-    if (is.null(fit)) next
+    if (is.null(fit) || length(fit$ic) == 0L) next
     best <- which.min(fit$ic)
+    if (length(best) == 0L) next               # 退化解：该节点不选任何边
     th_s <- fit$beta[, best]
+    if (length(th_s) != length(sdv)) next
     th <- th_s / sdv                          # 反标准化
     theta_hat[, j] <- th
     # 边判定：组 L2 范数
@@ -164,7 +168,7 @@ edge_metrics <- function(est, true) {
   c(Pr = pr, Re = re, MCC = mcc)
 }
 
-# Jacobian (线性 GLV: J_ji = theta_ji1，因 d/dx (theta1 x + theta2 x^2)|_{x_wt})
+# Jacobian (可加线性: J_ji = theta_ji1，因 d/dx (theta1 x + theta2 x^2)|_{x_wt})
 jac_rmse <- function(sys, theta_hat) {
   p <- sys$p
   Jhat <- matrix(0, p, p)
@@ -190,15 +194,28 @@ coef_l2 <- function(sys, theta_hat) {
 }
 
 ## ----------------------------------------------------------- 主实验循环 ----
-N_grid <- c(12, 16, 20, 30, 40, 60)
+# 样本预算沿用 Fig1c/Fig2a 的重标度刻度 N = ceil(k * s log p)，横轴用 N/(s log p)。
+p_design <- 8L
+n_in <- 2L
+slogp <- n_in * log(p_design)
+# 设计增益主要出现在数据稀缺（小预算）区间，故横轴沿用 Fig1c 的 N/(s log p)
+# 刻度，但向下覆盖到 p*M 以下的欠定区；退化拟合由 infer_network 的守卫处理。
+k_grid <- c(1.5, 2, 2.5, 3, 4, 6, 8)
+N_grid <- unique(ceiling(k_grid * slogp))
 strategies <- c("random", "maximin", "dopt")
 R <- 20
-sigma <- 0.04                                  # 稳态观测测量噪声（绝对尺度，对齐 sindy_ss σ≈0.03）
+snr_level <- 30                                # 与 Fig1c 一致的相对噪声水平
 
 rows <- list()
 for (seed in seq_len(R)) {
-  sys <- make_system(p = 8, n_in = 2, seed = 100 + seed)
+  sys <- make_system(p = p_design, n_in = n_in, seed = 100 + seed)
   pool <- make_pool(sys$p, n_pool = 4000)     # 共享候选池
+  # 噪声相对 SNR=30，但用一次大样本随机参考确定该系统的绝对 sigma，使三种设计
+  # 共享同一测量噪声（测量噪声不依赖设计，保证公平比较）。
+  U_ref <- make_pool(sys$p, n_pool = 500)
+  X_ref <- steady_state(sys, U_ref)
+  signal_scale <- mean(apply(X_ref, 2, sd))
+  sigma <- signal_scale / snr_level
   for (N in N_grid) {
     for (strat in strategies) {
       # 设计基于模型预测（无噪），观测含测量噪声——符合实际：设计时不知噪声实现
@@ -211,7 +228,9 @@ for (seed in seq_len(R)) {
       res <- infer_network(sys, U, X)
       m <- edge_metrics(res$adj_est, sys$adj)
       rows[[length(rows) + 1]] <- data.frame(
-        seed = seed, N = N, strategy = strat,
+        seed = seed, p = sys$p, s = n_in, N = N, N_over_slogp = N / slogp,
+        strategy = strat, snr = snr_level, sigma = sigma,
+        signal_scale = signal_scale,
         Pr = m["Pr"], Re = m["Re"], MCC = m["MCC"],
         CoefL2 = coef_l2(sys, res$theta_hat),
         JacRMSE = jac_rmse(sys, res$theta_hat))
@@ -223,11 +242,11 @@ df <- do.call(rbind, rows)
 rownames(df) <- NULL
 
 dir.create("results/sim_results", showWarnings = FALSE, recursive = TRUE)
-write.csv(df, "results/sim_results/design_comparison.csv", row.names = FALSE)
+write.csv(df, "results/sim_results/Fig2b_design_linear.csv", row.names = FALSE)
 
 ## ---------------------------------------------------------------- 汇总 ----
 agg <- aggregate(cbind(MCC, Pr, Re, CoefL2, JacRMSE) ~ strategy + N, df, mean)
 agg <- agg[order(agg$N, agg$strategy), ]
 cat("\n===== mean over", R, "seeds =====\n")
 print(agg, row.names = FALSE)
-cat("\nSaved: results/sim_results/design_comparison.csv\n")
+cat("\nSaved: results/sim_results/Fig2b_design_linear.csv\n")

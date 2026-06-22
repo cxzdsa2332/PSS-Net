@@ -450,7 +450,11 @@ fig1c_file <- "results/sim_results/Fig1c_adsiht_group_lasso_scaling.csv"
 if (file.exists(fig1c_file)) {
   fig1c_df <- read.csv(fig1c_file, stringsAsFactors = FALSE)
   fig1c_df$method <- factor(fig1c_df$method, levels = c("ADSIHT", "GroupLasso"))
-  
+  # `truth` (linear / nonlinear) is a newer column; default older CSVs to one
+  # level so the linetype mapping below stays valid.
+  if (is.null(fig1c_df$truth)) fig1c_df$truth <- "nonlinear"
+  fig1c_df$truth <- factor(fig1c_df$truth, levels = c("linear", "nonlinear"))
+
   setting_info <- unique(fig1c_df[, c("p", "s_in")])
   setting_info <- setting_info[order(setting_info$p), ]
   setting_info$edges <- setting_info$p * setting_info$s_in
@@ -465,10 +469,11 @@ if (file.exists(fig1c_file)) {
     metric_df$metric <- factor(metric_df$metric, levels = unique(metric_df$metric))
     do.call(rbind, lapply(split(metric_df,
                                 list(metric_df$setting, metric_df$method,
-                                     metric_df$metric, metric_df$x),
+                                     metric_df$truth, metric_df$metric, metric_df$x),
                                 drop = TRUE), function(d) {
                                   data.frame(
-                                    setting = d$setting[1], method = d$method[1], metric = d$metric[1],
+                                    setting = d$setting[1], method = d$method[1],
+                                    truth = d$truth[1], metric = d$metric[1],
                                     x = d$x[1], mean = mean(d$value, na.rm = TRUE),
                                     sd = sd(d$value, na.rm = TRUE)
                                   )
@@ -479,17 +484,18 @@ if (file.exists(fig1c_file)) {
   # fixed sigma; SNR=30 is the default moderate-noise display layer.
   fig1c_main_snr <- 30
   fig1c_plot_df <- fig1c_df[fig1c_df$snr == fig1c_main_snr, ]
+  fig1c_cols <- c("setting", "N", "N_over_slogp", "seed", "method", "truth")
   metric_df <- rbind(
-    data.frame(fig1c_plot_df[, c("setting", "N", "N_over_slogp", "seed", "method")],
+    data.frame(fig1c_plot_df[, fig1c_cols],
                metric = "MCC", x = fig1c_plot_df$N_over_slogp, value = fig1c_plot_df$MCC),
-    data.frame(fig1c_plot_df[, c("setting", "N", "N_over_slogp", "seed", "method")],
+    data.frame(fig1c_plot_df[, fig1c_cols],
                metric = "AUPRC", x = fig1c_plot_df$N_over_slogp, value = fig1c_plot_df$AUPRC),
-    data.frame(fig1c_plot_df[, c("setting", "N", "N_over_slogp", "seed", "method")],
+    data.frame(fig1c_plot_df[, fig1c_cols],
                metric = "AUROC", x = fig1c_plot_df$N_over_slogp, value = fig1c_plot_df$AUROC),
-    data.frame(fig1c_plot_df[, c("setting", "N", "N_over_slogp", "seed", "method")],
+    data.frame(fig1c_plot_df[, fig1c_cols],
                metric = "Coef. L2 (lower)", x = fig1c_plot_df$N_over_slogp,
                value = fig1c_plot_df$CoefL2),
-    data.frame(fig1c_plot_df[, c("setting", "N", "N_over_slogp", "seed", "method")],
+    data.frame(fig1c_plot_df[, fig1c_cols],
                metric = "Jac. RMSE (lower)", x = fig1c_plot_df$N_over_slogp,
                value = fig1c_plot_df$JacRMSE)
   )
@@ -500,21 +506,25 @@ if (file.exists(fig1c_file)) {
   fig1c_summary$metric <- factor(fig1c_summary$metric, levels = levels(metric_df$metric))
   rownames(fig1c_summary) <- NULL
   
+  # Two grouping aesthetics: colour = method, linetype = truth (solid nonlinear,
+  # dashed linear). The per-series sd ribbon is dropped here -- four overlapping
+  # ribbons would be unreadable and the sd is noisy at few repetitions.
   Fig1c_method_scaling <- ggplot(fig1c_summary,
-                                 aes(x = x, y = mean, color = method, group = method)) +
-    geom_ribbon(aes(ymin = pmax(0, mean - sd), ymax = mean + sd,
-                    fill = method), alpha = 0.14, color = NA, show.legend = FALSE) +
-    geom_line(linewidth = 0.65) +
-    geom_point(size = 1.7) +
+                                 aes(x = x, y = mean, color = method,
+                                     linetype = truth,
+                                     group = interaction(method, truth))) +
+    geom_line(linewidth = 0.6) +
+    geom_point(aes(shape = truth), size = 1.6) +
     facet_grid(metric ~ setting, scales = "free_y") +
     scale_color_manual(values = c(ADSIHT = "#2E6F9E", GroupLasso = "#B45F4D")) +
-    scale_fill_manual(values = c(ADSIHT = "#2E6F9E", GroupLasso = "#B45F4D")) +
+    scale_linetype_manual(values = c(linear = "22", nonlinear = "solid")) +
+    scale_shape_manual(values = c(linear = 1, nonlinear = 16)) +
     scale_y_continuous(expand = expansion(mult = c(0.04, 0.06))) +
     labs(
       x = "sample budget N / (s log p)",
       y = "metric value",
-      color = NULL,
-      title = sprintf("Node-wise ADSIHT vs group lasso across dimensions (SNR = %s)",
+      color = NULL, linetype = NULL, shape = NULL,
+      title = sprintf("Node-wise ADSIHT vs group lasso, linear vs nonlinear (SNR = %s)",
                       fig1c_main_snr)
     ) +
     theme_classic(base_size = 10) +

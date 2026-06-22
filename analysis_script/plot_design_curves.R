@@ -68,10 +68,10 @@ plot_design_curve <- function(input_csv, output_pdf, title, subtitle,
 }
 
 plot_design_curve(
-  input_csv = "results/sim_results/design_comparison.csv",
+  input_csv = "results/sim_results/Fig2b_design_linear.csv",
   output_pdf = "results/figure/design_mcc_curve.pdf",
   title = "Optimal perturbation design improves network recovery",
-  subtitle = "8-node linear gLV benchmark, monomial M=2, ADSIHT"
+  subtitle = "8-node linear additive-ODE benchmark, monomial M=2, ADSIHT"
 )
 
 plot_design_curve(

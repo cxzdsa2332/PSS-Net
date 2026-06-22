@@ -1,7 +1,7 @@
 rm(list = ls())
 
 ################################################################################
-# pss_net_compositional.R  —  PSS-Net: 组成型（相对丰度 / CLR）数据下的网络恢复
+# Fig3c_compositional_data_limitation.R -- compositional-data limitation
 #
 # 致命缺口 #2：真实 16S 是组成型（只知相对丰度，总量未知），而 PSS 稳态关系
 # (2') 写在【绝对】丰度上。本脚本量化组成型化对网络恢复的破坏，并比较常见处理：
@@ -12,7 +12,7 @@ rm(list = ls())
 #
 # 真值：gLV/加性共享闭式稳态（对角占优，正值）。基：单项式 M=2，逐节点 ADSIHT。
 #
-# Output:  results/sim_results/compositional_recovery.csv  — 每 (input,seed) 的 MCC 等
+# Output:  results/sim_results/Fig3c_compositional_data_limitation.csv
 ################################################################################
 
 suppressMessages(library(ADSIHT))
@@ -98,11 +98,12 @@ for (seed in seq_len(R)) {
 df <- do.call(rbind, rows); rownames(df) <- NULL
 
 dir.create("results/sim_results", showWarnings = FALSE, recursive = TRUE)
-write.csv(df, "results/sim_results/compositional_recovery.csv", row.names = FALSE)
+out <- "results/sim_results/Fig3c_compositional_data_limitation.csv"
+write.csv(df, out, row.names = FALSE)
 
 agg <- aggregate(cbind(Pr, Re, MCC) ~ input, df, mean)
 agg <- agg[match(inputs, agg$input), ]
 cat("\n===== 组成型数据网络恢复（p=", p, ", ", R, " seeds, mean）=====\n", sep = "")
 print(agg, row.names = FALSE)
 cat("\n判读：abs 为上界；rel/clr 衡量组成型化的破坏；rel_x_T 检验实测总量校正能否复原。\n")
-cat("Saved: results/sim_results/compositional_recovery.csv\n")
+cat("Saved:", out, "\n")

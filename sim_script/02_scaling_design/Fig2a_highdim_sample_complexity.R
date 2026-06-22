@@ -1,10 +1,12 @@
 rm(list = ls())
 
 ################################################################################
-# pss_net_highdim.R  —  PSS-Net: 高维稀疏恢复相变（验证 §11 样本复杂度 N≳s·log p）
+# Fig2a_highdim_sample_complexity.R -- PSS-Net high-dimensional sample complexity
 #
-# 致命缺口 #1：此前模拟全是 p=6–8，未在真高维 (p 大、N<pM) 验证核心稀疏恢复主张。
-# 本脚本扫描 p∈{20,50,100}，每节点固定入边数 s，按 N≈k·s·log(p) 取若干预算，
+# Fig2a connects the 8-node demonstration scale used in Fig1 with larger sparse
+# systems. It scans p in {8, 50, 100}; p = 8 uses s = 2 incoming edges per node,
+# matching the small-network setting, while larger systems use s = 3.
+# For each setting, sample budgets follow N ≈ k * s * log(p).
 # 用逐节点 ADSIHT 恢复网络，考察 MCC 是否随重标度变量 N/(s·log p) 坍缩到同一曲线
 # （§11 (SC): N≳s·log(p/s)+s·s0·log(eM) 的经验印证）。
 #
@@ -12,7 +14,7 @@ rm(list = ls())
 #       对角占优保证可解、正值；避免高维 ODE 积分开销。
 # 基：单项式 M=2。回归：逐节点 ADSIHT（中心化+标准化）。
 #
-# Output:  results/sim_results/highdim_recovery.csv  — 每 (p,N,seed) 的 MCC 等
+# Output:  results/sim_results/Fig2a_highdim_sample_complexity.csv
 ################################################################################
 
 suppressMessages(library(ADSIHT))
@@ -72,14 +74,14 @@ mcc_of <- function(est, true) {
 }
 
 ## ----------------------------------------------------------- 主循环 ----
-p_grid <- c(20, 50, 100)
-s_in <- 3L
-k_grid <- c(1, 2, 3, 5, 8)          # N = ceil(k * s * log p)
+p_grid <- c(8, 50, 100)
+k_grid <- c(1, 2, 3, 5, 8, 10, 12, 14, 16, 20, 24, 30)  # N = ceiling(k * s * log p)
 R <- 5
 sigma <- 0.03
 
 rows <- list()
 for (p in p_grid) {
+  s_in <- if (p <= 8L) 2L else 3L
   base <- s_in * log(p)
   N_grid <- unique(pmax(M_ord * 2L, ceiling(k_grid * base)))
   for (seed in seq_len(R)) {
@@ -103,11 +105,12 @@ for (p in p_grid) {
 df <- do.call(rbind, rows); rownames(df) <- NULL
 
 dir.create("results/sim_results", showWarnings = FALSE, recursive = TRUE)
-write.csv(df, "results/sim_results/highdim_recovery.csv", row.names = FALSE)
+out <- "results/sim_results/Fig2a_highdim_sample_complexity.csv"
+write.csv(df, out, row.names = FALSE)
 
 agg <- aggregate(MCC ~ p + N + N_over_slogp, df, mean)
 agg <- agg[order(agg$p, agg$N), ]
-cat("\n===== 高维稀疏恢复（s=", s_in, ", ", R, " seeds, mean MCC）=====\n", sep = "")
+cat("\n===== 高维稀疏恢复（", R, " seeds, mean MCC）=====\n", sep = "")
 print(agg, row.names = FALSE)
 cat("\n判读：固定 p 看 MCC 随 N 上升；不同 p 的曲线按 N/(s·log p) 重标度后应趋于重合。\n")
-cat("Saved: results/sim_results/highdim_recovery.csv\n")
+cat("Saved:", out, "\n")

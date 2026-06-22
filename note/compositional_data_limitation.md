@@ -1,8 +1,8 @@
 # Note: 组成型（相对丰度 / CLR）数据下 PSS 网络恢复的局限
 
 **用途**：记录"PSS 加性稳态回归在组成型数据上为何失效、何种预处理可行"的实验发现。
-**日期**：2026-06-16。相关：[../sim_script/03_robustness_benchmarks/pss_net_compositional.R](../sim_script/03_robustness_benchmarks/pss_net_compositional.R)、
-`results/sim_results/compositional_recovery.csv`、[../data/datasets.md](../data/datasets.md)、
+**日期**：2026-06-16。相关：[../sim_script/03_robustness_benchmarks/Fig3c_compositional_data_limitation.R](../sim_script/03_robustness_benchmarks/Fig3c_compositional_data_limitation.R)、
+`results/sim_results/Fig3c_compositional_data_limitation.csv`、[../data/datasets.md](../data/datasets.md)、
 [../methods/sindy_ss_method.md](../methods/sindy_ss_method.md) §2。
 
 ## 背景

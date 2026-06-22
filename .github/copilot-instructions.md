@@ -162,7 +162,7 @@ Goal 1: foundation, identifiability, and baseline recovery:
 Goal 2: sample complexity and perturbation design:
 
 - `sim_script/02_scaling_design/pss_net_highdim.R`
-- `sim_script/02_scaling_design/pss_net_design.R`
+- `sim_script/02_scaling_design/Fig2b_design_linear.R`
 - `sim_script/02_scaling_design/pss_net_design_nl.R`
 - `sim_script/02_scaling_design/pss_net_design_nl_seq.R`
 
