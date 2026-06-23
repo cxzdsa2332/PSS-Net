@@ -50,6 +50,7 @@ method section is in `manuscript/sections/02_method.tex`.
 | `methods/` | Method notes and design documents. |
 | `manuscript/` | LaTeX manuscript project. |
 | `data/` | Dataset notes and future real-data inputs. |
+| `datasets.md` | Curated DREAM4, ERBB/HCC1954, and K61 datasets for package-backed MRA/PSS-Net comparisons, including accessions and analysis caveats. |
 | `ref/` | References, BibTeX, external benchmark-method notes, and literature notes. |
 | `sup/` | Supplementary simulation plans and future supplemental outputs, especially misspecification and sensitivity analyses. |
 | `results/` | Local generated outputs. This directory is ignored by Git for now. |

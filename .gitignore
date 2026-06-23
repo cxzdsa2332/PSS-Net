@@ -18,3 +18,9 @@ results/
 *.toc
 manuscript/main.pdf
 Rplots.pdf
+
+# Local Python runtime for the package-backed Fig3b PySINDy benchmark
+.python-fig3b/
+.uv-cache/
+.venv-fig3b/
+.venv-fig3b-standalone/

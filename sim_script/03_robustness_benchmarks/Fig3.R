@@ -3,17 +3,91 @@ rm(list = ls())
 ################################################################################
 # Fig3.R -- Figure 3 panel objects for PSS-Net
 #
-# Purpose: build Figure 3 robustness/benchmark panel objects from existing
-#          simulation result files. Current implementation focuses on Fig3c:
-#          compositional-data limitations for PSS network recovery.
+# Purpose: build Figure 3 robustness/benchmark panel objects.
+#            Fig3a -- method capability matrix (positioning panel; no data file,
+#                     hand-curated from ref/external_benchmark_methods.md).
+#            Fig3e -- compositional-data limitations for PSS network recovery
+#                     (historically named Fig3c; object name kept for now).
+#          Benchmark panels Fig3b/Fig3c read the external-benchmark CSV and are
+#          built in analysis_script (see simulation_plan.md).
 #
 # Input:   results/sim_results/Fig3c_compositional_data_limitation.csv
-# Output:  Fig3c_compositional_data_limitation and Fig3c objects in workspace.
+# Output:  Fig3a_method_capability_matrix / Fig3a, and
+#          Fig3c_compositional_data_limitation / Fig3c objects in workspace.
 ################################################################################
 
 suppressMessages({
   library(ggplot2)
 })
+
+## ------------------------------------- Fig3a: method capability matrix ----
+# Qualitative positioning panel: which capabilities each method class has, so the
+# unique PSS-Net cell (directed + uses u + nonlinear edge functions on steady-state
+# data) is visible. Hand-curated from ref/external_benchmark_methods.md.
+# Encoding: 1 = yes, 0.5 = partial / conditional, 0 = no.
+fig3a_methods <- c(
+  "PSS-Net (ADSIHT)", "MRA", "Lasso / Elastic net", "Group lasso",
+  "PySINDy STLSQ (PSS)", "GENIE3 / GRNBoost2", "GIES (interventional)",
+  "Correlation / partial cor.", "SPIEC-EASI / SparCC"
+)
+fig3a_caps <- c("Uses\nperturbation u", "Directed\nedges", "Signed\nedges",
+                "Nonlinear\nedge functions", "Built-in sparse\nselection",
+                "Steady-state\n(no time series)", "Compositional\naware")
+# Rows follow fig3a_methods; columns follow fig3a_caps. "Built-in sparse
+# selection" = produces a sparse edge set directly, without a post-hoc threshold
+# (so the dense MRA / correlation baselines are 0; they need thresholding).
+fig3a_values <- rbind(
+  c(1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.0),  # PSS-Net (group + within-group sparsity)
+  c(1.0, 1.0, 1.0, 0.0, 0.0, 1.0, 0.0),  # MRA (dense OLS + t-test threshold)
+  c(1.0, 1.0, 1.0, 0.5, 1.0, 1.0, 0.0),  # Lasso / EN (nonlinear via library)
+  c(1.0, 1.0, 1.0, 0.5, 1.0, 1.0, 0.0),  # Group lasso
+  c(1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.0),  # PySINDy STLSQ on steady-state PSS library
+  c(0.0, 1.0, 0.0, 1.0, 0.5, 1.0, 0.5),  # GENIE3 (state-only, ranked importances)
+  c(1.0, 1.0, 0.0, 0.0, 1.0, 1.0, 0.0),  # GIES (interventional, DAG, linear-Gaussian)
+  c(0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0),  # Correlation / partial cor. (dense)
+  c(0.0, 0.0, 0.5, 0.0, 0.5, 1.0, 1.0)   # SPIEC-EASI (sparse) / SparCC (dense)
+)
+
+fig3a_df <- data.frame(
+  method = factor(rep(fig3a_methods, times = length(fig3a_caps)),
+                  levels = rev(fig3a_methods)),
+  capability = factor(rep(fig3a_caps, each = length(fig3a_methods)),
+                      levels = fig3a_caps),
+  value = as.vector(fig3a_values)
+)
+fig3a_df$glyph <- c("·", "~", "✓")[match(fig3a_df$value, c(0, 0.5, 1))]
+fig3a_df$val_f <- factor(fig3a_df$value, levels = c(0, 0.5, 1))
+
+# Highlight the PSS-Net row (top of the reversed factor).
+fig3a_hi <- length(fig3a_methods)
+
+Fig3a_method_capability_matrix <- ggplot(
+  fig3a_df, aes(x = capability, y = method, fill = val_f)
+) +
+  geom_tile(color = "white", linewidth = 0.7) +
+  geom_text(aes(label = glyph), size = 3.1, color = "grey15") +
+  annotate("rect", xmin = 0.5, xmax = length(fig3a_caps) + 0.5,
+           ymin = fig3a_hi - 0.5, ymax = fig3a_hi + 0.5,
+           fill = NA, color = "#2E6F9E", linewidth = 0.9) +
+  scale_fill_manual(values = c("0" = "#EEEEEE", "0.5" = "#F3D9B0",
+                               "1" = "#BCD3B6"), guide = "none") +
+  scale_x_discrete(position = "top") +
+  labs(
+    x = NULL, y = NULL,
+    title = "PSS-Net occupies a unique cell among network-inference methods"
+  ) +
+  theme_minimal(base_size = 10) +
+  theme(
+    plot.title = element_text(face = "bold", size = 10.8),
+    panel.grid = element_blank(),
+    axis.text.x = element_text(size = 6.8, color = "grey20", lineheight = 0.9),
+    axis.text.y = element_text(size = 7.6, color = "grey20"),
+    plot.margin = margin(5.5, 8, 5.5, 5.5)
+  )
+
+Fig3a <- Fig3a_method_capability_matrix
+
+Fig3a
 
 ## ----------------------------------------- Fig3c: compositional limitation ----
 fig3c_file <- "results/sim_results/Fig3c_compositional_data_limitation.csv"

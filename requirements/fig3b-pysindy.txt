@@ -1,0 +1,2 @@
+# Original-author PySINDy source audited for the Fig3b STLSQ baseline.
+git+https://github.com/dynamicslab/pysindy.git@c4421fcec275c8f4cc5c1e93bebb961b212067ae

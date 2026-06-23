@@ -46,6 +46,75 @@ These methods usually infer undirected associations rather than directed perturb
 
 Recommended role: compositional or microbiome-style stress tests; report that the target is association, not directed causal coupling.
 
+### 5. Perturbation-Using Directed / Causal Inference
+
+These methods, like PSS-Net, exploit that the perturbation input `u` is known and
+controlled. They are the most direct competitors for the central PSS-Net claim
+("using `u` recovers directed coupling") and were under-represented in the earlier
+set. Self-ablations of PSS-Net are intentionally excluded here; these are external
+methods only.
+
+- Modular Response Analysis (MRA): the canonical method for inferring a directed,
+  row-normalized local-response matrix from steady-state perturbation responses.
+  The benchmark now calls the published `aiMeRA` R package. Because the simulation
+  uses continuous multivariate perturbations rather than one intervention per
+  module, it first estimates the square global response `dX/dU` from all conditions
+  and then calls `aiMeRA::mra(..., Rp=TRUE)`. The former self-contained
+  `LinearPSS` regression has been removed from the formal benchmark.
+- Interventional causal discovery (GIES): greedy interventional equivalence search
+  that consumes intervention/knockout data and returns a directed graph. Faithful
+  comparator for the causal-discovery community. Caveat: GIES (and DAG learners such
+  as NOTEARS-MLP / DAG-GNN) assume acyclicity, whereas PSS networks allow feedback
+  loops; include partly to show PSS-Net represents cyclic feedback that DAG methods
+  cannot.
+- SINDy with control input (SINDYc): sparse identification with the control `u`. On
+  PSS data the steady-state algebraic equation `0 = Theta(x) xi + u` makes SINDYc
+  with `u` as the response mathematically coincide with steady-state STLSQ on the
+  same library (Class 1); the time-series-derivative SINDYc is a different-data
+  variant that needs simulated trajectories and belongs in a data-matched supplement.
+
+Recommended role: head-to-head directed-coupling comparators that also use `u`;
+report alongside the linear / nonlinear truth split so the linear-only methods (MRA)
+are judged where they are valid and where they break.
+
+## Default-Parameter Policy
+
+All benchmark methods are run with package defaults or a single documented default
+threshold; no per-method hyperparameter search is performed. Where a method has a
+built-in selection path (cross-validation, information criterion, sequential
+thresholding) the default rule is used; dense-score methods (correlation, partial
+correlation, MRA) use a fixed significance/FDR rule documented in the script. The
+threshold-free ranking metrics (AUROC, AUPRC) are the primary fair comparison; MCC
+and friends are reported under each method's default selection.
+
+## Environment Availability (current workspace)
+
+Cleanly available R packages: `ADSIHT`, `glmnet`, `gglasso`, `deSolve`, `igraph`,
+`aiMeRA` 0.99.0, `reticulate`, and `ppcor` 1.1. The script now requires the
+original-author Python `pysindy` package at commit
+`c4421fcec275c8f4cc5c1e93bebb961b212067ae`. A standalone Python 3.13 runtime and
+project venv are installed under `.python-fig3b/` and `.venv-fig3b-standalone/`;
+the latter is the script default and can be overridden with `PSSNET_PYTHON`. Not installed:
+`grpreg` (use `gglasso` for group lasso), `GENIE3` /
+`randomForest` (state-only tree ensemble -- wired but skipped until installed), and
+`pcalg` (GIES -- wired but skipped until installed). Partial correlation now calls
+`ppcor::pcor()`; Pearson correlation uses base R `stats` functions.
+
+PySINDy setup is intentionally explicit rather than allowing `reticulate` to
+silently create an environment:
+
+```powershell
+python -m pip install -r requirements/fig3b-pysindy.txt
+$env:PSSNET_PYTHON = "C:/optional/alternate/python.exe"
+Rscript sim_script/03_robustness_benchmarks/Fig3b_external_benchmark_main.R
+```
+
+For exact reproduction of the currently audited package source:
+
+```r
+remotes::install_github("bioinfo-ircm/aiMeRA@86cabc21e8ed124ce372c2fe8e62b47503c2a22b")
+```
+
 ## Reporting Requirements
 
 For each benchmark method, report:
@@ -58,13 +127,23 @@ For each benchmark method, report:
 
 ## Minimum Main-Text Benchmark Set
 
-A compact main-text set should include:
+Run over a linear and a nonlinear truth regime (shared `A`, `r` and perturbation
+design, differing only by the quadratic term), so linear-only methods are judged
+both where they are valid and where they break. A compact main-text set should
+include:
 
-1. PSS-Net / ADSIHT.
-2. Lasso or elastic net on the same steady-state library.
-3. Group lasso on the same steady-state library.
-4. STLSQ/SINDy-style sparse library regression on the same steady-state library.
-5. GENIE3 or GRNBoost2 as state-only directed black-box inference.
-6. Correlation or graphical lasso as a minimal association baseline.
+1. PSS-Net / ADSIHT (node-wise double sparsity).
+2. Lasso and elastic net on the same steady-state library.
+3. Group lasso on the same steady-state library (`gglasso` here, not `grpreg`).
+4. `PySINDy_STLSQ`: official PySINDy optimizer on the same steady-state library.
+   This is PSS algebraic STLSQ, not time-series SINDYc.
+5. `aiMeRA`: package-backed classical normalized Modular Response Analysis.
+6. Correlation and package-backed `ppcor` partial correlation as association baselines.
+7. (When installed) GENIE3 / GRNBoost2 as state-only directed black-box inference,
+   and GIES as interventional causal discovery.
 
-SPIEC-EASI and SparCC should be included when presenting microbiome/compositional simulations or real-data case studies.
+SPIEC-EASI and SparCC should be included when presenting microbiome/compositional
+simulations or real-data case studies. The main benchmark script is
+`sim_script/03_robustness_benchmarks/Fig3b_external_benchmark_main.R`; it reuses the
+linear/nonlinear simulation and the node-wise PSS-Net inference from
+`sim_script/01_foundation_recovery/Fig1c_adsiht_group_lasso_scaling.R`.
