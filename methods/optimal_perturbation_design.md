@@ -1,15 +1,22 @@
-# PSS-Net 创新点 A：最优扰动设计（Optimal Perturbation Design）
+# PSS-Net 扰动设计模块：将现有 D-optimal design 接入 PSS 推断
 
-**方法说明** · 对应实现：`sim_script/02_scaling_design/pss_net_design.R`
+**方法说明** · 当前正式 pilot/oracle 实现：
+`sim_script/02_scaling_design/Fig2e_oracle_vs_estimated_design.R`
+
+> **贡献边界**：D-optimality、locally optimal design、Fedorov exchange 和 adaptive design
+> 均为已有方法。这里最多应表述为 **A（PSS 稳态响应模型）+ B（已有最优实验设计）** 的组合应用。
+> 项目特有部分是把 PSS 扰动到稳态的预测特征交给标准设计后端，并评估它对网络恢复的价值；
+> 不应把 D-optimal 算法本身作为新方法贡献。文献与实现边界见
+> `ref/pilot_doptimal_literature.md`。
 
 ---
 
 ## 1. 动机
 
-PSS 框架的独占杠杆是**外部扰动 $u$**。现有工作（Xiao 2017、idopNetwork、SINDy、Meister 2013）
-要么被动观测稳态，要么随机施扰，**无人形式化"为可识别性该施加哪些扰动"**。
-本节把网络重构从"被动推断"升级为"**主动设计 + 推断**"闭环：在固定实验预算 $N$ 下，
-选择信息量最大的扰动序列 $\{u^{(k)}\}$，使稀疏非参 ODE 的边恢复质量最大化。
+PSS 数据中外部扰动 $u$ 是可设计变量，因此可以把已有 optimal experimental design 工具用于
+选择后续扰动。在固定实验预算 $N$ 下，本模块以 PSS 模型预测候选稳态特征，再调用标准
+D-optimal design 后端选择信息量较高的条件。本文需要证明的是这种**已有设计方法在 PSS 网络恢复
+场景中的适用性和实验预算收益**，而不是重新提出 D-optimality。
 
 ---
 
@@ -30,10 +37,15 @@ $$x^*(u) = -B^{-1}(\mu+u) = x^{\mathrm{wt}} - B^{-1}u,\qquad x^{\mathrm{wt}}=-B^
 
 逐节点回归共享同一设计矩阵 $\Psi\in\mathbb{R}^{N\times pM}$，
 $\Psi_{k,(i-1)M+m}=\psi_m(x_i^{*(k)})$；仅响应 $-u_{\cdot j}$ 随节点变化。
-**故一次设计服务全部 $p$ 个节点。** 含截距的增广设计 $\tilde\Psi=[\mathbf 1,\Psi]$，
-（岭正则）信息矩阵
+**故一次设计服务全部 $p$ 个节点。** 当前实现先对特征列中心化、标准化，并用 pivoted QR
+保留可估计列，记所得矩阵为 $\Psi_c$。传给包的数据不手工重复常数列，但显式公式 `~ .`
+会按标准线性模型加入一个截距，记 $\tilde\Psi_c=[\mathbf 1,\Psi_c]$。用于精确 D-optimal
+augmentation 的信息矩阵为
 
-$$M_N=\tilde\Psi^\top\tilde\Psi+\lambda I\in\mathbb{R}^{(pM+1)\times(pM+1)}. \tag{2}$$
+$$M_N=\tilde\Psi_c^\top\tilde\Psi_c. \tag{2}$$
+
+这里不向 D-optimal 准则加入项目自定义的岭项；岭回归只用于从含噪 pilot PSS 稳定估计
+$dx^*/du$，随后把预测特征交给包实现。
 
 ### 2.3 设计准则
 
@@ -44,35 +56,37 @@ $$M_N=\tilde\Psi^\top\tilde\Psi+\lambda I\in\mathbb{R}^{(pM+1)\times(pM+1)}. \ta
 | E-最优 | $\max\ \lambda_{\min}(M_N)$ | 最坏方向最优 |
 | 互相干 | $\min\ \mu(\Psi)$ | 直接控制稀疏恢复（RIP/coherence） |
 
-本实现采用 **序贯 D-最优（贪心主动学习）**，与稀疏恢复理论（创新点 B）天然衔接。
+当前 Fig2e 采用 **pilot-informed exact D-optimal augmentation**：pilot 数据用于估计局部稳态响应
+映射；候选特征构造完成后，exact augmentation 交由 CRAN `AlgDesign::optFederov()` 完成。
 
 ---
 
-## 3. 序贯 D-最优算法
+## 3. 当前包实现
 
-D-最优的贪心增量有解析形式：向已选集加入特征行 $\tilde\psi_c$ 后
+对 pilot 和候选扰动预测稳态特征后，先按列中心化、标准化，并用 pivoted QR 去除确定性线性
+依赖，只在可估计特征空间内优化。随后调用：
 
-$$\log\det\!\big(M+\tilde\psi_c\tilde\psi_c^\top\big)-\log\det M
-  =\log\!\big(1+\tilde\psi_c^\top M^{-1}\tilde\psi_c\big), \tag{3}$$
-
-即**最大化候选行的预测方差** $\tilde\psi_c^\top M^{-1}\tilde\psi_c$（经典序贯 D-最优）。
-
-```
-输入：候选扰动池 U_pool（大），预算 N，岭参数 λ
-1. 种子：u=0（野生型）+ 少量随机扰动；由 (1) 得 x*，建 Ψ̃，M = Ψ̃ᵀΨ̃ + λI
-2. while |selected| < N:
-     对每个候选 u_c ∈ U_pool：
-        预测 x*(u_c)（闭式 (1)，或对真实非线性系统数值积分）
-        构造增广行 ψ̃_c
-        score(u_c) = ψ̃_cᵀ M⁻¹ ψ̃_c        # 预测方差，eq.(3)
-     选 u* = argmax score；加入 selected；
-     秩一更新 M ← M + ψ̃_* ψ̃_*ᵀ，M⁻¹ 用 Sherman–Morrison 更新
-3. 输出 {u^(k)} 及对应 {x*^(k)}
+```r
+AlgDesign::optFederov(
+  frml = ~ .,
+  data = as.data.frame(rbind(Phi_pilot, Phi_pool)),
+  nTrials = N_total,
+  criterion = "D",
+  augment = TRUE,
+  rows = seq_len(N_pilot),
+  maxIteration = 100,
+  nRepeats = 1
+)
 ```
 
-**复杂度**：每步 $O(|U_\text{pool}|\cdot (pM)^2)$；Sherman–Morrison 免重复求逆。
-**主动学习版**：真实系统无闭式 (1) 时，候选打分用线性化 $x^*\approx x^{\mathrm{wt}}-\hat J^{-1}u$，
-仅对入选者做高精度积分——对应可在湿实验中序贯执行的自适应扰动设计。
+- `criterion="D"`：优化 D 准则；
+- `augment=TRUE`：把 pilot 条件作为不可交换的 protected runs；
+- `nTrials=N_total`：pilot 严格计入总实验预算；
+- 其余点由包内 Fedorov exchange algorithm 从有限候选池选择。
+
+每个总预算单独调用包优化，因此设计不强制形成嵌套前缀。项目不维护自写的 D-optimal 优化
+核心；PSS 特有代码只负责 `u -> x* -> Phi` 映射。完整算法出处和包引用见
+`ref/pilot_doptimal_literature.md` 与 `ref/references.bib`。
 
 ---
 
@@ -80,26 +94,26 @@ $$\log\det\!\big(M+\tilde\psi_c\tilde\psi_c^\top\big)-\log\det M
 
 1. **random**（现状）：$u\sim\text{Uniform}(-0.4,0.8)^p$，取前 $N$。
 2. **maximin（空间填充）**：在 $u$ 空间贪心最大化最小间距（Latin-hypercube 风格）。
-3. **D-opt（本方法）**：序贯 D-最优。
+3. **D-opt（已有方法）**：`AlgDesign::optFederov()` exact D-optimal augmentation。
 
 ---
 
 ## 5. 模拟实验方案
 
-- **系统**：$p=8$ 物种线性 GLV，每节点入边 $\sim2$，强自调节保证 Hurwitz 与 $x^*>0$。
+- **系统**：$p=8$ 非线性加性 ODE，每节点 2 条入边，其中至少 1 条含二次项。
 - **基**：单项式 $M=2$。**回归**：ADSIHT（`ic.type="dsic"`），逐节点 + 中心化 + 标准化。
-- **关键设置**：在**小预算** $N\in\{12,16,20,30,40,60\}$ 扫描——此区间随机设计欠定/勉强可识别，
-  最能体现设计价值（大 $N$ 时各法均饱和）。
-- **重复**：每 $(N,\text{strategy})$ 跑 $R=20$ 个种子。
-- **指标**：MCC（主）、Precision/Recall、CoefL2、JacRMSE。
-- **产出**：学习曲线 MCC–$N$（ggplot2），预期 **D-opt 在小 $N$ 显著占优**
-  （达到目标 MCC 所需条件数更少）。输出 `results/design_comparison.csv` 与
-  `results/design_mcc_curve.pdf`。
+- **pilot**：$N_{\mathrm{pilot}}\in\{8,12,16\}$，含噪 pilot 用 ridge 估计局部 $dx^*/du$。
+- **总预算**：$N_{\mathrm{total}}\in\{20,30,40,60\}$，其中 pilot 计入总数。
+- **重复**：每个组合 $R=20$ 个系统种子。
+- **指标**：MCC（主）、Precision、Recall、失败节点数。
+- **产出**：oracle regret 与 pilot D-optimal 相对 random 的 MCC 增益。
 
 ---
 
-## 6. 预期贡献
+## 6. 在论文中的角色
 
-- 把 PSS-Net 从"又一推断器"升级为 Xiao/idopNetwork/SINDy 都缺失的**设计+推断**维度；
-- 序贯 D-最优 + Sherman–Morrison 高效、可解析，且主动学习版可直接落地湿实验；
-- 与可识别性/样本复杂度理论（创新点 B）形成闭环。
+- 作为**应用与系统整合结果**：说明标准 D-optimal augmentation 接入 PSS 稳态预测后，是否能
+  减少网络恢复所需实验条件；
+- 作为**可行性检查**：量化真 Jacobian oracle 与含噪 pilot plug-in 之间的损失；
+- 不将 D-optimality、Fedorov exchange、locally optimal design 或 ridge estimation 声称为本文创新；
+- 除非后续提出并证明新的 PSS 专用设计准则，否则该模块最多是 A（PSS-Net）+ B（已有设计方法）。

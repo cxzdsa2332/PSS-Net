@@ -1,11 +1,11 @@
 rm(list = ls())
 
 ################################################################################
-# pss_net_design_nl_seq.R  —  PSS-Net 创新点 A：最优扰动设计（强非线性版）
+# pss_net_design_nl_seq.R  —  经过设计的扰动与随机扰动比较（强非线性版）
 #
 # 在 pss_net_design_nl.R 基础上加大二次项强度 B_ji（更强非线性），
 # 对比三种扰动设计在固定预算 N 下的网络恢复质量：
-#   random / maximin(u 空间填充) / dopt(序贯 D-最优，线性化打分)
+#   random / maximin(u 空间填充) / dopt(AlgDesign exact D-optimal)
 #
 # 回归:  逐节点 ADSIHT（中心化+标准化），单项式基 M=2（含 x, x^2）
 # Input:   none
@@ -15,6 +15,7 @@ rm(list = ls())
 
 suppressMessages({
   library(ADSIHT)
+  library(AlgDesign)
   library(deSolve)
 })
 
@@ -80,7 +81,7 @@ jac_lin <- function(sys) {
 
 ## ------------------------------------------------------- 基函数 ----
 psi_row <- function(xvec) as.vector(sapply(xvec, function(x) x^(seq_len(M_ord))))
-aug_row <- function(xvec) c(1, psi_row(xvec))
+design_row <- function(xvec) psi_row(xvec)
 
 make_pool <- function(p, n_pool = 2500) {
   matrix(runif(n_pool * p, -0.4, 0.8), n_pool, p)
@@ -100,26 +101,27 @@ order_maximin <- function(sys, pool, N_max) {
   idx
 }
 
-# 一次性 D-opt：候选与已选均用线性化稳态特征打分（不积分）
-order_dopt <- function(sys, pool, N_max, lambda = 1e-2) {
-  q <- 1 + sys$p * M_ord
+prepare_design_features <- function(Phi) {
+  Phi <- sweep(Phi, 2, colMeans(Phi))
+  s <- apply(Phi, 2, sd)
+  s[!is.finite(s) | s < 1e-10] <- 1
+  Phi <- sweep(Phi, 2, s, "/")
+  q <- qr(Phi, tol = 1e-9)
+  if (q$rank < ncol(Phi)) Phi <- Phi[, sort(q$pivot[seq_len(q$rank)]), drop = FALSE]
+  Phi
+}
+
+select_dopt <- function(sys, pool, N, seed) {
   Bj <- jac_lin(sys)
-  # 线性化稳态：x*(u) = x_wt - Bj^{-1} u
   X_lin <- t(sys$x_wt - solve(Bj, t(pool)))
-  Phi <- t(apply(X_lin, 1, aug_row))
-  Minv <- diag(1 / lambda, q)
-  add_point <- function(i) {
-    phi <- Phi[i, ]; Mv <- Minv %*% phi
-    Minv <<- Minv - (Mv %*% t(Mv)) / as.numeric(1 + phi %*% Mv)
-  }
-  sel <- 1L; add_point(1L)
-  avail <- rep(TRUE, nrow(pool)); avail[1L] <- FALSE
-  for (k in 2:N_max) {
-    score <- rowSums((Phi %*% Minv) * Phi); score[!avail] <- -Inf
-    nxt <- which.max(score); add_point(nxt)
-    sel <- c(sel, nxt); avail[nxt] <- FALSE
-  }
-  sel
+  Phi <- prepare_design_features(t(apply(X_lin, 1, design_row)))
+  if (N < ncol(Phi) + 1L) return(integer(0))  # 加截距后的 exact D-opt 模型秩
+  set.seed(seed)
+  fit <- AlgDesign::optFederov(
+    frml = ~ ., data = as.data.frame(Phi), nTrials = N, criterion = "D",
+    augment = TRUE, rows = 1L, maxIteration = 100, nRepeats = 1
+  )
+  as.integer(fit$rows)
 }
 
 ## ------------------------------------------------------ 逐节点 ADSIHT 推断 ----
@@ -198,21 +200,29 @@ for (seed in seq_len(R)) {
   sys <- make_system_nl(p = 8, n_in = 2, seed = 200 + seed)
   if (any(!is.finite(sys$x_wt)) || any(sys$x_wt <= 0)) { cat("seed", seed, "skip (bad wt)\n"); next }
   pool <- make_pool(sys$p, n_pool = 2500)
+  pool[1, ] <- 0                                # 三种策略共享 WT 条件
+  index_by_strategy <- list(
+    random = setNames(lapply(N_grid, function(N) order_random(sys, pool, N)), N_grid),
+    maximin = {
+      ord <- order_maximin(sys, pool, N_max)
+      setNames(lapply(N_grid, function(N) ord[seq_len(N)]), N_grid)
+    },
+    dopt = setNames(lapply(N_grid, function(N)
+      select_dopt(sys, pool, N, 300000L + 100L * seed + N)), N_grid)
+  )
+  union_idx <- unique(unlist(index_by_strategy, use.names = FALSE))
+  X_union <- steady_many(sys, pool[union_idx, , drop = FALSE])
+  E_union <- matrix(rnorm(length(X_union), sd = sigma), nrow(X_union))
+  X_union_obs <- X_union + E_union
   for (strat in strategies) {
-    ord <- switch(strat,
-                  random  = order_random(sys, pool, N_max),
-                  maximin = order_maximin(sys, pool, N_max),
-                  dopt    = order_dopt(sys, pool, N_max))
-    U_full <- pool[ord, , drop = FALSE]
-    U_full[1, ] <- 0                            # 首条件设为野生型
-    X_full <- steady_many(sys, U_full)          # 真实非线性稳态（仅入选点积分）
-    ok <- apply(X_full, 1, function(r) all(is.finite(r)) && all(r > 0))
-    X_obs_full <- X_full + matrix(rnorm(length(X_full), sd = sigma), nrow(X_full))
     for (N in N_grid) {
-      use <- which(ok)[which(ok) <= N]          # 前缀内的有效条件
+      idx <- index_by_strategy[[strat]][[as.character(N)]]
+      if (length(idx) == 0L) next
+      X_full <- X_union_obs[match(idx, union_idx), , drop = FALSE]
+      ok <- apply(X_full, 1, function(r) all(is.finite(r)) && all(r > 0))
+      use <- which(ok)
       if (length(use) < 8) next
-      res <- infer_network(sys, U_full[use, , drop = FALSE],
-                           X_obs_full[use, , drop = FALSE])
+      res <- infer_network(sys, pool[idx[use], , drop = FALSE], X_full[use, , drop = FALSE])
       m <- edge_metrics(res$adj_est, sys$adj)
       rows[[length(rows) + 1]] <- data.frame(
         seed = seed, N = N, n_eff = length(use), strategy = strat,

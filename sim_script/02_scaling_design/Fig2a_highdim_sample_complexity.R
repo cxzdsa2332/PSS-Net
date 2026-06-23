@@ -112,5 +112,4 @@ agg <- aggregate(MCC ~ p + N + N_over_slogp, df, mean)
 agg <- agg[order(agg$p, agg$N), ]
 cat("\n===== 高维稀疏恢复（", R, " seeds, mean MCC）=====\n", sep = "")
 print(agg, row.names = FALSE)
-cat("\n判读：固定 p 看 MCC 随 N 上升；不同 p 的曲线按 N/(s·log p) 重标度后应趋于重合。\n")
 cat("Saved:", out, "\n")

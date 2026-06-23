@@ -6,7 +6,7 @@ rm(list = ls())
 # 比较三种扰动设计策略在固定预算 N 下的网络恢复质量：
 #   (1) random   —  Uniform 随机扰动（现状基线）
 #   (2) maximin  —  u 空间贪心空间填充（Latin-hypercube 风格）
-#   (3) dopt     —  序贯 D-最优主动设计（本方法，eq.3 + Sherman-Morrison）
+#   (3) dopt     —  AlgDesign::optFederov() 精确 D-optimal design（已有工具）
 #
 # 系统:  稀疏可加线性 ODE  dx_j/dt = r_j + sum_i a_ji x_i - gamma_j x_j + u_j，
 #        稳态闭式  x*(u) = (diag(gamma) - A)^{-1}(r + u)   (§1.1 (2')，与 Fig1c/Fig2a 一致)
@@ -20,6 +20,7 @@ rm(list = ls())
 
 suppressMessages({
   library(ADSIHT)
+  library(AlgDesign)
 })
 
 set.seed(1)
@@ -52,8 +53,8 @@ steady_state <- function(sys, U) {
 ## ------------------------------------------------------- 设计矩阵 / 基函数 ----
 M_ord <- 2L
 psi_row <- function(xvec) as.vector(sapply(xvec, function(x) x^(seq_len(M_ord))))  # length p*M
-# 增广行 [1, psi] 用于 D-最优（含截距）
-aug_row <- function(xvec) c(1, psi_row(xvec))
+# PSS 特征作为模型项传入；AlgDesign 的显式公式 ~ . 同时估计截距。
+design_row <- function(xvec) psi_row(xvec)
 
 ## ------------------------------------------------- 三种扰动设计策略 ----
 # 扰动幅度范围放宽到 u ~ U[-0.4, 0.8]，给 D-最优更大的候选空间以体现设计增益
@@ -84,37 +85,27 @@ design_maximin <- function(sys, N, pool) {
   pool[idx, , drop = FALSE]
 }
 
-design_dopt <- function(sys, N, pool, lambda = 1e-2) {
-  # 序贯 D-最优：贪心最大化候选行预测方差 psi' Minv psi (eq.3)
-  q <- 1 + sys$p * M_ord                       # 增广维度
-  X_pool <- steady_state(sys, pool)            # 候选稳态（闭式，快）
-  Phi_pool <- t(apply(X_pool, 1, aug_row))     # n_pool x q 增广特征
-  # 种子：u=0（野生型）
-  seed_idx <- 1L
-  pool[1, ] <- 0                               # 第一个候选设为 WT
-  X_pool[1, ] <- sys$x_wt
-  Phi_pool[1, ] <- aug_row(sys$x_wt)
-  Minv <- diag(1 / lambda, q)                  # (lambda I)^{-1}
-  add_point <- function(idx) {
-    phi <- Phi_pool[idx, ]
-    # Sherman-Morrison 秩一更新 Minv
-    Mv <- Minv %*% phi
-    denom <- as.numeric(1 + phi %*% Mv)
-    Minv <<- Minv - (Mv %*% t(Mv)) / denom
-  }
-  add_point(seed_idx)
-  sel <- seed_idx
-  avail <- rep(TRUE, nrow(pool)); avail[seed_idx] <- FALSE
-  for (k in 2:N) {
-    # 预测方差 score = rowSums((Phi %*% Minv) * Phi)
-    PM <- Phi_pool %*% Minv
-    score <- rowSums(PM * Phi_pool)
-    score[!avail] <- -Inf
-    nxt <- which.max(score)
-    add_point(nxt)
-    sel <- c(sel, nxt); avail[nxt] <- FALSE
-  }
-  pool[sel, , drop = FALSE]
+prepare_design_features <- function(Phi) {
+  Phi <- sweep(Phi, 2, colMeans(Phi))
+  s <- apply(Phi, 2, sd)
+  s[!is.finite(s) | s < 1e-10] <- 1
+  Phi <- sweep(Phi, 2, s, "/")
+  q <- qr(Phi, tol = 1e-9)
+  if (q$rank < ncol(Phi)) Phi <- Phi[, sort(q$pivot[seq_len(q$rank)]), drop = FALSE]
+  Phi
+}
+
+design_dopt <- function(sys, N, pool, seed) {
+  # 有限候选集 exact D-optimal design；WT（第 1 行）作为所有策略共享条件。
+  X_pool <- steady_state(sys, pool)
+  Phi <- prepare_design_features(t(apply(X_pool, 1, design_row)))
+  if (N < ncol(Phi) + 1L) return(NULL)  # 加截距后的 exact D-opt 模型秩
+  set.seed(seed)
+  fit <- AlgDesign::optFederov(
+    frml = ~ ., data = as.data.frame(Phi), nTrials = N, criterion = "D",
+    augment = TRUE, rows = 1L, maxIteration = 100, nRepeats = 1
+  )
+  pool[fit$rows, , drop = FALSE]
 }
 
 ## ------------------------------------------------------ 逐节点 ADSIHT 推断 ----
@@ -210,6 +201,7 @@ rows <- list()
 for (seed in seq_len(R)) {
   sys <- make_system(p = p_design, n_in = n_in, seed = 100 + seed)
   pool <- make_pool(sys$p, n_pool = 4000)     # 共享候选池
+  pool[1, ] <- 0                              # 三种策略共享 WT 条件
   # 噪声相对 SNR=30，但用一次大样本随机参考确定该系统的绝对 sigma，使三种设计
   # 共享同一测量噪声（测量噪声不依赖设计，保证公平比较）。
   U_ref <- make_pool(sys$p, n_pool = 500)
@@ -222,7 +214,9 @@ for (seed in seq_len(R)) {
       U <- switch(strat,
                   random  = design_random(sys, N, pool),
                   maximin = design_maximin(sys, N, pool),
-                  dopt    = design_dopt(sys, N, pool))
+                  dopt    = design_dopt(sys, N, pool,
+                                        seed = 100000L + 100L * seed + N))
+      if (is.null(U)) next
       X_true <- steady_state(sys, U)
       X <- X_true + matrix(rnorm(length(X_true), sd = sigma), nrow(X_true))
       res <- infer_network(sys, U, X)

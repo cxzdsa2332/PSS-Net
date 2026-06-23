@@ -3,16 +3,20 @@ rm(list = ls())
 ################################################################################
 # Fig2_explain.R -- conceptual 3D perturbation-design schematic
 #
-# Purpose: draw a visual explanation of three perturbation-design strategies in
-#          a 3D input space: random sampling, maximin space filling, and
-#          sequential D-optimal design. This script is conceptual and does not
+# Purpose: draw a visual explanation of four perturbation-design strategies in
+#          a 3D input space: random, maximin, oracle D-optimal, and D-optimal
+#          based on a noisy pilot-estimated response map. All four strategies
+#          share the same pilot points. This script is conceptual and does not
 #          write numeric simulation results.
 #
 # Output:  Fig2_design_concept_random, Fig2_design_concept_maximin,
-#          Fig2_design_concept_dopt, and Fig2_design_concept in the workspace.
+#          Fig2_design_concept_oracle, Fig2_design_concept_pilot,
+#          Fig2_design_concept_dopt (oracle compatibility alias), and
+#          Fig2_design_concept in the workspace.
 ################################################################################
 
 suppressMessages({
+  library(AlgDesign)
   library(ggplot2)
   library(grid)
 })
@@ -22,70 +26,110 @@ set.seed(2026)
 ## ------------------------------------------------------------- Design rules ----
 n_pool <- 3000L
 n_design <- 28L
+n_pilot <- 8L
 u_lo <- -1
 u_hi <- 1
 
 pool <- matrix(runif(n_pool * 3L, u_lo, u_hi), n_pool, 3L)
 colnames(pool) <- c("u1", "u2", "u3")
 
-feature_row <- function(u) {
-  # A small nonlinear feature dictionary: intercept, main effects, pairwise
-  # products and quadratic terms. D-optimal design spreads points where these
-  # columns become informative, often near boundaries/corners.
-  c(1, u, u[1] * u[2], u[1] * u[3], u[2] * u[3], u^2)
+# A toy nonlinear steady-state response map. Oracle D-optimal knows this map;
+# pilot D-optimal estimates only its local linear response from noisy pilot data.
+true_response <- function(U) {
+  cbind(
+    0.55 + 0.70 * U[, 1] - 0.20 * U[, 3] + 0.28 * U[, 2]^2,
+    0.70 - 0.35 * U[, 1] + 0.62 * U[, 2] + 0.22 * U[, 1] * U[, 3],
+    0.60 + 0.18 * U[, 1] - 0.32 * U[, 2] + 0.72 * U[, 3] + 0.25 * U[, 1]^2
+  )
 }
 
-design_random <- function(pool, n) {
-  pool[sample(seq_len(nrow(pool)), n), , drop = FALSE]
+state_features <- function(X) {
+  # Pass x/x^2 as data columns; the explicit AlgDesign formula `~ .` adds the
+  # standard intercept, so no constant column is constructed here.
+  cbind(X, X^2)
 }
 
-design_maximin <- function(pool, n) {
-  # Greedy maximin in raw perturbation space.
-  start_idx <- which.min(rowSums((sweep(pool, 2, c(u_lo, u_lo, u_lo)))^2))
-  idx <- start_idx
-  mind <- sqrt(rowSums((sweep(pool, 2, pool[start_idx, ]))^2))
-  mind[idx] <- -Inf
-  for (k in 2:n) {
+pilot_idx <- c(which.min(rowSums(pool^2)),
+               sample(setdiff(seq_len(nrow(pool)), which.min(rowSums(pool^2))),
+                      n_pilot - 1L))
+U_pilot <- pool[pilot_idx, , drop = FALSE]
+candidate_pool <- pool[-pilot_idx, , drop = FALSE]
+n_add <- n_design - n_pilot
+
+design_random <- function(U_pilot, pool, n_add) {
+  idx <- sample(seq_len(nrow(pool)), n_add)
+  list(U = rbind(U_pilot, pool[idx, , drop = FALSE]), idx = idx)
+}
+
+design_maximin <- function(U_pilot, pool, n_add) {
+  # Greedy maximin continuation conditional on the shared pilot inputs.
+  mind <- rep(Inf, nrow(pool))
+  for (i in seq_len(nrow(U_pilot))) {
+    mind <- pmin(mind, sqrt(rowSums((sweep(pool, 2, U_pilot[i, ]))^2)))
+  }
+  idx <- integer(0)
+  for (k in seq_len(n_add)) {
     nxt <- which.max(mind)
     idx <- c(idx, nxt)
     d_new <- sqrt(rowSums((sweep(pool, 2, pool[nxt, ]))^2))
     mind <- pmin(mind, d_new)
     mind[idx] <- -Inf
   }
-  pool[idx, , drop = FALSE]
+  list(U = rbind(U_pilot, pool[idx, , drop = FALSE]), idx = idx)
 }
 
-design_dopt <- function(pool, n, lambda = 1e-2) {
-  # Greedy D-optimal design in feature space, using Sherman-Morrison updates.
-  Phi <- t(apply(pool, 1, feature_row))
-  q <- ncol(Phi)
-  idx <- which.min(rowSums(pool^2))  # include a near-baseline point first
-  Minv <- diag(1 / lambda, q)
-  add_point <- function(i) {
-    phi <- Phi[i, ]
-    Mv <- Minv %*% phi
-    denom <- as.numeric(1 + phi %*% Mv)
-    Minv <<- Minv - (Mv %*% t(Mv)) / denom
+design_dopt <- function(U_pilot, pool, Phi_pilot, Phi_pool, n_add,
+                        seed = 1L) {
+  # Package-backed exact D-optimal augmentation. The shared pilot rows are
+  # protected from exchange; AlgDesign chooses the remaining candidate rows.
+  n_pilot_local <- nrow(Phi_pilot)
+  Fx <- rbind(Phi_pilot, Phi_pool)
+  Fx <- sweep(Fx, 2, colMeans(Fx))
+  fx_sd <- apply(Fx, 2, sd)
+  fx_sd[!is.finite(fx_sd) | fx_sd < 1e-10] <- 1
+  Fx <- sweep(Fx, 2, fx_sd, "/")
+  qFx <- qr(Fx, tol = 1e-9)
+  if (qFx$rank < ncol(Fx)) {
+    keep <- sort(qFx$pivot[seq_len(qFx$rank)])
+    Fx <- Fx[, keep, drop = FALSE]
   }
-  add_point(idx)
-  avail <- rep(TRUE, nrow(pool))
-  avail[idx] <- FALSE
-  for (k in 2:n) {
-    PM <- Phi %*% Minv
-    score <- rowSums(PM * Phi)
-    score[!avail] <- -Inf
-    nxt <- which.max(score)
-    idx <- c(idx, nxt)
-    add_point(nxt)
-    avail[nxt] <- FALSE
-  }
-  pool[idx, , drop = FALSE]
+  set.seed(seed)
+  fit <- AlgDesign::optFederov(
+    frml = ~ ., data = as.data.frame(Fx),
+    nTrials = n_pilot_local + n_add,
+    criterion = "D", augment = TRUE,
+    rows = seq_len(n_pilot_local),
+    maxIteration = 100, nRepeats = 1
+  )
+  idx <- fit$rows[fit$rows > n_pilot_local] - n_pilot_local
+  list(U = rbind(U_pilot, pool[idx, , drop = FALSE]), idx = idx)
 }
+
+X_pilot_true <- true_response(U_pilot)
+X_pool_true <- true_response(candidate_pool)
+Phi_pilot_oracle <- state_features(X_pilot_true)
+Phi_pool_oracle <- state_features(X_pool_true)
+
+# Pilot-estimated local response map, matching the logic of Fig2e.
+X_pilot_obs <- X_pilot_true + matrix(rnorm(length(X_pilot_true), sd = 0.10),
+                                     nrow(X_pilot_true), ncol(X_pilot_true))
+Uc <- sweep(U_pilot, 2, colMeans(U_pilot))
+Xc <- sweep(X_pilot_obs, 2, colMeans(X_pilot_obs))
+H_hat <- solve(crossprod(Uc) + diag(0.25, ncol(Uc)), crossprod(Uc, Xc))
+X_pool_hat <- sweep(candidate_pool, 2, colMeans(U_pilot)) %*% H_hat +
+  matrix(colMeans(X_pilot_obs), nrow(candidate_pool), ncol(X_pilot_obs), byrow = TRUE)
+Phi_pilot_hat <- state_features(X_pilot_obs)
+Phi_pool_hat <- state_features(X_pool_hat)
 
 designs <- list(
-  "Random" = design_random(pool, n_design),
-  "Maximin" = design_maximin(pool, n_design),
-  "D-optimal" = design_dopt(pool, n_design)
+  "Random" = design_random(U_pilot, candidate_pool, n_add),
+  "Maximin" = design_maximin(U_pilot, candidate_pool, n_add),
+  "Oracle D-opt" = design_dopt(U_pilot, candidate_pool,
+                                Phi_pilot_oracle, Phi_pool_oracle, n_add,
+                                seed = 20261L),
+  "Pilot D-opt" = design_dopt(U_pilot, candidate_pool,
+                               Phi_pilot_hat, Phi_pool_hat, n_add,
+                               seed = 20262L)
 )
 
 ## -------------------------------------------------------------- 3D drawing ----
@@ -127,9 +171,12 @@ axis_df <- do.call(rbind, lapply(seq_len(nrow(axis_raw)), function(i) {
              label = axis_raw$label[i])
 }))
 
-make_panel_df <- function(mat, strategy) {
+make_panel_df <- function(design, strategy) {
+  mat <- design$U
   p <- project_points(mat[, 1], mat[, 2], mat[, 3])
   data.frame(strategy = strategy, px = p$x, py = p$y,
+             phase = rep(c("Shared pilot", "Selected next"),
+                         c(n_pilot, nrow(mat) - n_pilot)),
              depth = mat[, 3], u1 = mat[, 1], u2 = mat[, 2], u3 = mat[, 3])
 }
 
@@ -152,6 +199,9 @@ draw_design_panel <- function(strategy_name) {
               size = 3.0, color = "grey20") +
     geom_point(data = d, aes(x = px, y = py, color = depth),
                size = 2.35, alpha = 0.95) +
+    geom_point(data = d[d$phase == "Shared pilot", ],
+               aes(x = px, y = py), shape = 1, size = 3.25,
+               stroke = 0.8, color = "grey10") +
     scale_color_gradient2(low = "#2E6F9E", mid = "#F5F6F4", high = "#C0392B",
                           midpoint = 0, guide = "none") +
     labs(title = strategy_name) +
@@ -159,29 +209,31 @@ draw_design_panel <- function(strategy_name) {
     theme_void(base_size = 10) +
     theme(
       plot.title = element_text(face = "bold", size = 11, hjust = 0.5),
-      plot.margin = margin(7, 10, 7, 10)
+      # Doubled left/right margins widen the gaps between the four panels.
+      plot.margin = margin(7, 20, 7, 20)
     )
 }
 
 Fig2_design_concept_random <- draw_design_panel("Random")
 Fig2_design_concept_maximin <- draw_design_panel("Maximin")
-Fig2_design_concept_dopt <- draw_design_panel("D-optimal")
+Fig2_design_concept_oracle <- draw_design_panel("Oracle D-opt")
+Fig2_design_concept_pilot <- draw_design_panel("Pilot D-opt")
+Fig2_design_concept_dopt <- Fig2_design_concept_oracle
 
 if (requireNamespace("patchwork", quietly = TRUE)) {
   Fig2_design_concept <- Fig2_design_concept_random +
     Fig2_design_concept_maximin +
-    Fig2_design_concept_dopt +
+    Fig2_design_concept_oracle +
+    Fig2_design_concept_pilot +
     patchwork::plot_layout(nrow = 1) +
     patchwork::plot_annotation(
-      title = "Perturbation design strategies in a 3D input space",
-      subtitle = "Random samples cluster by chance; maximin fills u-space; D-optimal selects feature-informative boundary points"
+      title = "Perturbation design after a shared pilot experiment"
     ) &
     theme(
-      plot.title = element_text(face = "bold", size = 12),
-      plot.subtitle = element_text(size = 8.5, color = "grey30")
+      plot.title = element_text(face = "bold", size = 12)
     )
 } else {
-  Fig2_design_concept <- Fig2_design_concept_dopt
+  Fig2_design_concept <- Fig2_design_concept_pilot
 }
 
 Fig2_design_concept

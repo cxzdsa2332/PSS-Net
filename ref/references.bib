@@ -47,6 +47,130 @@
   archivePrefix = {arXiv}
 }
 
+%==============================================================================
+% 最优实验设计：Fig2b/Fig2e 的理论与算法谱系
+%==============================================================================
+
+% 非线性模型中的“局部最优设计”：设计依赖未知参数的先验/初始估计。
+@article{chernoff1953locally,
+  author  = {Chernoff, Herman},
+  title   = {Locally Optimal Designs for Estimating Parameters},
+  journal = {The Annals of Mathematical Statistics},
+  year    = {1953},
+  volume  = {24},
+  number  = {4},
+  pages   = {586--602},
+  doi     = {10.1214/aoms/1177728915}
+}
+
+% D-最优与最大预测方差（G-最优）之间的经典等价结果。
+@article{kiefer1960equivalence,
+  author  = {Kiefer, Jack and Wolfowitz, Jacob},
+  title   = {The Equivalence of Two Extremum Problems},
+  journal = {Canadian Journal of Mathematics},
+  year    = {1960},
+  volume  = {12},
+  pages   = {363--366},
+  doi     = {10.4153/CJM-1960-030-4}
+}
+
+% Fig2e 中逐点最大化 phi' M^{-1} phi 并秩一更新的直接算法源头。
+@article{wynn1970sequential,
+  author  = {Wynn, Henry P.},
+  title   = {The Sequential Generation of {$D$}-Optimum Experimental Designs},
+  journal = {The Annals of Mathematical Statistics},
+  year    = {1970},
+  volume  = {41},
+  number  = {5},
+  pages   = {1655--1664},
+  doi     = {10.1214/aoms/1177696809}
+}
+
+% 当前 Fig2b/Fig2e 的 D-optimal augmentation 后端。
+@manual{wheeler2025algdesign,
+  author  = {Wheeler, Bob},
+  title   = {{AlgDesign}: Algorithmic Experimental Design},
+  year    = {2025},
+  note    = {R package version 1.2.1.2},
+  doi     = {10.32614/CRAN.package.AlgDesign},
+  url     = {https://CRAN.R-project.org/package=AlgDesign}
+}
+
+% AlgDesign::optFederov 所实现 exchange algorithm 的经典来源。
+@book{fedorov1972theory,
+  author    = {Fedorov, Valerii V.},
+  title     = {Theory of Optimal Experiments},
+  publisher = {Academic Press},
+  address   = {New York},
+  year      = {1972}
+}
+
+% Fig2e pilot 响应映射使用 ridge 稳定小样本矩阵求逆。
+@article{hoerl1970ridge,
+  author  = {Hoerl, Arthur E. and Kennard, Robert W.},
+  title   = {Ridge Regression: Biased Estimation for Nonorthogonal Problems},
+  journal = {Technometrics},
+  year    = {1970},
+  volume  = {12},
+  number  = {1},
+  pages   = {55--67},
+  doi     = {10.1080/00401706.1970.10488634}
+}
+
+% 参数依赖的非线性局部最优设计；对应 oracle 与 plug-in 设计的概念背景。
+@article{ford1992canonical,
+  author  = {Ford, I. and Torsney, B. and Wu, C. F. J.},
+  title   = {The Use of a Canonical Form in the Construction of Locally Optimal
+             Designs for Non-Linear Problems},
+  journal = {Journal of the Royal Statistical Society: Series B
+             (Methodological)},
+  year    = {1992},
+  volume  = {54},
+  number  = {2},
+  pages   = {569--583},
+  doi     = {10.1111/j.2517-6161.1992.tb01897.x}
+}
+
+% 当参数不确定性不可忽略时，Bayesian design 是 plug-in local design 的替代方案。
+@article{chaloner1995bayesian,
+  author  = {Chaloner, Kathryn and Verdinelli, Isabella},
+  title   = {Bayesian Experimental Design: A Review},
+  journal = {Statistical Science},
+  year    = {1995},
+  volume  = {10},
+  number  = {3},
+  pages   = {273--304},
+  doi     = {10.1214/ss/1177009939}
+}
+
+% 完整 adaptive Wynn：每轮依据迄今观测重新估参，再选下一个设计点。
+@article{freise2021adaptivewynn,
+  author  = {Freise, Fritjof and Gaffke, Norbert and Schwabe, Rainer},
+  title   = {The Adaptive {Wynn} Algorithm in Generalized Linear Models with
+             Univariate Response},
+  journal = {The Annals of Statistics},
+  year    = {2021},
+  volume  = {49},
+  number  = {2},
+  doi     = {10.1214/20-AOS1974},
+  eprint  = {1907.02708},
+  archivePrefix = {arXiv}
+}
+
+% adaptive Wynn 的批量/p-step 扩展；与未来“每批重估响应映射”的 Fig2e 扩展最接近。
+@article{freise2024pstep,
+  author  = {Freise, Fritjof and Gaffke, Norbert and Schwabe, Rainer},
+  title   = {A {$p$}-Step-Ahead Sequential Adaptive Algorithm for
+             {$D$}-Optimal Nonlinear Regression Design},
+  journal = {Statistical Papers},
+  year    = {2024},
+  volume  = {65},
+  number  = {5},
+  pages   = {2811--2834},
+  doi     = {10.1007/s00362-023-01502-4},
+  note    = {Published online 10 November 2023; print issue July 2024}
+}
+
 % ===== 双稀疏 / sparse group lasso 的 minimax 速率与样本复杂度 =====
 @article{cai2022sparsegroup,
   author  = {Cai, T. Tony and Zhang, Anru R. and Zhou, Yuchen},
