@@ -3,8 +3,8 @@ rm(list = ls())
 ################################################################################
 # Fig1.R -- Figure 1 panel objects for PSS-Net
 #
-# Purpose: build the Figure 1 panels as workspace plot objects (no files are
-#          written). Fig1a/Fig1b/Fig1c use a historical 8-node setting; Fig1d and
+# Purpose: build the Figure 1 panels as workspace plot objects and write the
+#          assembled Fig1.pdf. Fig1a/Fig1b/Fig1c use a historical 8-node setting; Fig1d and
 #          Fig1e use a fresh 10-node nonlinear additive system with node-wise
 #          ADSIHT at SNR = 30. Node labels use a unified N1...Nk scheme.
 #            Fig1a -- ODE dynamics generate perturbed steady-state measurements
@@ -16,11 +16,14 @@ rm(list = ls())
 #            Fig1e -- per-source steady-state function-shape recovery.
 #            Fig1f -- directed coupling network: true vs node-wise ADSIHT
 #                     inferred (igraph), shares the Fig1d/Fig1e 10-node system.
+#            Fig1g -- fitted-library misspecification: support vs edge-function
+#                     recovery (reads CSV from Fig1x_basis_misspecification.R).
 #
 # Input:   results/sim_results/Fig1c_adsiht_group_lasso_scaling.csv (Fig1c only).
 # Output:  Fig1a, Fig1a_legend, Fig1b_function_shape, Fig1b_identifiability,
 #          Fig1b, Fig1b_noise_snr, snr_summary, Fig1c, Fig1d, Fig1e and Fig1f
-#          objects in the workspace, plus the assembled Fig1 (panels a-f tagged
+#          objects in the workspace, plus Fig1g_basis_robustness / Fig1g and the
+#          assembled Fig1 (panels a-g tagged
 #          via cowplot, sized for A4 portrait). The disabled dynamics overlay
 #          (Fig1d_dynamics) is kept for later use behind an `if (FALSE)` guard.
 ################################################################################
@@ -1098,8 +1101,90 @@ Fig1f <- as.ggplot(draw_fig1f)
 
 Fig1f
 
-## ----------------------------------------------- Assemble Figure 1 (a-f) ----
-# Assemble the six panels into one A4-portrait figure. cowplot::plot_grid is used
+## ------------------------------------ Fig1g: basis-misspecification robustness ----
+# Compact identifiability companion: how recovery changes as the FITTED library
+# is varied away from the true nonlinear edge function (truth shapes coloured;
+# matched library ringed). Two facets carry the message -- support MCC is robust
+# across libraries while edge-function NRMSE needs an adequate dictionary; signed
+# Jacobian accuracy (~1 everywhere) is stated in the caption rather than plotted.
+# Data: results/sim_results/Fig1x_basis_misspecification.csv (run
+# sim_script/01_foundation_recovery/Fig1x_basis_misspecification.R first).
+fig1g_file <- "results/sim_results/Fig1x_basis_misspecification.csv"
+if (file.exists(fig1g_file)) {
+  fig1g_raw <- read.csv(fig1g_file, stringsAsFactors = FALSE)
+  fig1g_lib_levels <- c("linear", "poly2", "poly3", "monod", "fourier")
+  fig1g_truth_levels <- c("poly2", "monod", "sine")
+  fig1g_long <- rbind(
+    data.frame(fig1g_raw[, c("seed", "truth", "library", "matched")],
+               metric = "Support MCC (higher better)", value = fig1g_raw$MCC),
+    data.frame(fig1g_raw[, c("seed", "truth", "library", "matched")],
+               metric = "Edge-function NRMSE (lower better)",
+               value = fig1g_raw$FuncNRMSE)
+  )
+  fig1g_long <- fig1g_long[is.finite(fig1g_long$value), ]
+  fig1g_summary <- do.call(rbind, lapply(split(
+    fig1g_long, list(fig1g_long$truth, fig1g_long$library, fig1g_long$metric),
+    drop = TRUE
+  ), function(d) {
+    data.frame(truth = d$truth[1], library = d$library[1],
+               metric = d$metric[1], matched = any(d$matched),
+               mean = mean(d$value), stringsAsFactors = FALSE)
+  }))
+  rownames(fig1g_summary) <- NULL
+  fig1g_summary$library <- factor(fig1g_summary$library,
+                                  levels = fig1g_lib_levels)
+  fig1g_summary$truth <- factor(fig1g_summary$truth,
+                                levels = fig1g_truth_levels)
+  fig1g_summary$metric <- factor(
+    fig1g_summary$metric,
+    levels = c("Support MCC (higher better)",
+               "Edge-function NRMSE (lower better)"))
+  fig1g_truth_labels <- c(poly2 = "poly2 truth (A x + B x^2)",
+                          monod = "monod truth (saturating)",
+                          sine = "sine truth (oscillatory)")
+  fig1g_colors <- c(poly2 = "#2E6F9E", monod = "#6D8B3D", sine = "#B45F4D")
+
+  Fig1g_basis_robustness <- ggplot(
+    fig1g_summary,
+    aes(x = library, y = mean, color = truth, group = truth)
+  ) +
+    geom_line(linewidth = 0.5, linetype = "22", alpha = 0.7) +
+    geom_point(size = 1.9) +
+    geom_point(data = fig1g_summary[fig1g_summary$matched, ],
+               shape = 21, size = 3.4, stroke = 0.8, fill = NA,
+               color = "grey20", show.legend = FALSE) +
+    facet_wrap(~ metric, nrow = 1, scales = "free_y") +
+    scale_color_manual(values = fig1g_colors, labels = fig1g_truth_labels) +
+    scale_y_continuous(expand = expansion(mult = c(0.06, 0.1))) +
+    labs(
+      x = "fitted basis / library", y = "mean over seeds", color = NULL,
+      title = "Support recovery is robust to library misspecification; function recovery needs a matched dictionary"
+    ) +
+    theme_classic(base_size = 10) +
+    theme(
+      plot.title = element_text(face = "bold", size = 9.6),
+      plot.subtitle = element_text(size = 7.8, color = "grey30"),
+      strip.background = element_rect(fill = "grey95", color = "grey82",
+                                      linewidth = 0.35),
+      strip.text = element_text(face = "bold", size = 8),
+      axis.title = element_text(size = 8.4),
+      axis.text.x = element_text(size = 7.1, color = "grey25"),
+      axis.text.y = element_text(size = 7.1, color = "grey25"),
+      legend.position = "right",
+      legend.text = element_text(size = 7.5),
+      panel.spacing = unit(0.8, "lines"),
+      plot.margin = margin(5.5, 8, 5.5, 5.5)
+    )
+  Fig1g <- Fig1g_basis_robustness
+} else {
+  Fig1g_basis_robustness <- NULL
+  Fig1g <- NULL
+}
+
+Fig1g
+
+## ----------------------------------------------- Assemble Figure 1 (a-g) ----
+# Assemble the seven panels into one A4-portrait figure. cowplot::plot_grid is used
 # (not patchwork's `/`) because Fig1b is itself a patchwork composite, and
 # nesting patchwork inside patchwork mis-aligns the inner sub-panels; cowplot
 # treats each panel as an opaque grob and avoids that conflict. Layout: a and b
@@ -1116,9 +1201,9 @@ if (requireNamespace("cowplot", quietly = TRUE)) {
   row_de <- plot_grid(Fig1d, Fig1e, labels = c("d", "e"), label_size = 14,
                       label_fontface = "bold", ncol = 2, rel_widths = c(1, 1.15))
 
-  panels <- list(row_ab, fig1c_panel, row_de, Fig1f)
-  labels <- c("", "c", "", "f")
-  rel_h  <- c(1.35, 1.6, 0.95, 0.95)
+  panels <- list(row_ab, fig1c_panel, row_de, Fig1f, Fig1g)
+  labels <- c("", "c", "", "f", "g")
+  rel_h  <- c(1.35, 1.6, 0.95, 0.95, 0.85)
   keep   <- !vapply(panels, is.null, logical(1))
 
   Fig1 <- plot_grid(plotlist = panels[keep], labels = labels[keep],
@@ -1130,4 +1215,3 @@ if (requireNamespace("cowplot", quietly = TRUE)) {
 
 # A4 portrait (210 x 297 mm).
 ggsave("Fig1.pdf", Fig1, width = 210, height = 297, units = "mm")
-

@@ -1,7 +1,7 @@
 rm(list = ls())
 
 ################################################################################
-# Fig3c_compositional_data_limitation.R -- compositional-data limitation
+# Fig3e_compositional_data_limitation.R -- compositional-data limitation
 #
 # 致命缺口 #2：真实 16S 是组成型（只知相对丰度，总量未知），而 PSS 稳态关系
 # (2') 写在【绝对】丰度上。本脚本量化组成型化对网络恢复的破坏，并比较常见处理：

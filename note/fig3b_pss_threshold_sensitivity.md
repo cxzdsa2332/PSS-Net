@@ -2,6 +2,10 @@
 
 记录日期：2026-06-23
 
+> 状态说明（2026-06-24）：主 benchmark 保持 `M_ord=2`；PSS-Net 与 aiMeRA 的主分析
+> 现统一使用 row-normalized `abs(link)` 分数及固定 `> 0.05` 判边。minimum-DSIC
+> `A_out` 保留为 native-selection 敏感性结果，不再作为 headline MCC。
+
 ## 发现
 
 在当前 Fig3b benchmark（`p=30`、每节点入度 `s_in=2`、边密度 6.9%、

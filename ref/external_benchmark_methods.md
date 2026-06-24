@@ -85,7 +85,14 @@ built-in selection path (cross-validation, information criterion, sequential
 thresholding) the default rule is used; dense-score methods (correlation, partial
 correlation, MRA) use a fixed significance/FDR rule documented in the script. The
 threshold-free ranking metrics (AUROC, AUPRC) are the primary fair comparison; MCC
-and friends are reported under each method's default selection.
+and friends are reported under each method's documented selection. In the main
+PSS-Net versus aiMeRA comparison, both methods use the absolute row-normalized
+local-response score and the fixed `> 0.05` cutoff. PSS-Net's minimum-DSIC `A_out`
+support is retained as an audited native-selection sensitivity result rather than
+the headline graph. The shared equation-regression library is currently
+`[x, x^2]`, matching the maximum order
+in the quadratic simulation truth. Higher-order library robustness is treated as
+a separate sensitivity analysis rather than mixed into the main benchmark.
 
 ## Environment Availability (current workspace)
 
@@ -101,13 +108,35 @@ the latter is the script default and can be overridden with `PSSNET_PYTHON`. Not
 `ppcor::pcor()`; Pearson correlation uses base R `stats` functions.
 
 PySINDy setup is intentionally explicit rather than allowing `reticulate` to
-silently create an environment:
+silently create an environment. The benchmark script automatically discovers
+`.venv-fig3b-standalone`, `.venv-fig3b`, or `.python-fig3b` under the project
+root, using `Scripts/python.exe` on Windows and `bin/python` on macOS/Linux.
+`PSSNET_PYTHON` remains the highest-priority override.
 
-```powershell
-python -m pip install -r requirements/fig3b-pysindy.txt
-$env:PSSNET_PYTHON = "C:/optional/alternate/python.exe"
+macOS/Linux setup from the project root:
+
+```bash
+python3 -m venv .venv-fig3b
+./.venv-fig3b/bin/python -m pip install --upgrade pip
+./.venv-fig3b/bin/python -m pip install -r requirements/fig3b-pysindy.txt
+FIG3B_R=1 FIG3B_K=10 Rscript sim_script/03_robustness_benchmarks/Fig3b_external_benchmark_main.R
+```
+
+Windows PowerShell setup from the project root:
+
+```pwsh
+py -3 -m venv .venv-fig3b
+.\.venv-fig3b\Scripts\python.exe -m pip install --upgrade pip
+.\.venv-fig3b\Scripts\python.exe -m pip install -r requirements\fig3b-pysindy.txt
+$env:FIG3B_R = "1"
+$env:FIG3B_K = "10"
 Rscript sim_script/03_robustness_benchmarks/Fig3b_external_benchmark_main.R
 ```
+
+The environment variable is only needed for a nonstandard location:
+
+- macOS/Linux: `PSSNET_PYTHON=/path/to/python Rscript ...`
+- Windows PowerShell: `$env:PSSNET_PYTHON = "C:\path\to\python.exe"`
 
 For exact reproduction of the currently audited package source:
 
@@ -122,7 +151,9 @@ For each benchmark method, report:
 - inputs used: `X`, `u`, time series, total biomass, count table;
 - output type: directed edge ranking, undirected association, signed/unsigned edges, function estimates;
 - tuning protocol: cross-validation, information criterion, default package settings, or oracle threshold;
-- metrics: MCC for selected networks, AUROC/AUPR for rankings, sign accuracy where available, hub recovery where relevant;
+- metrics: MCC for selected networks, AUROC/AUPR for rankings, sign accuracy where
+  available, total/linear/nonlinear local-Jacobian RMSE and edge-function
+  RMSE/NRMSE where coefficients are available, and hub recovery where relevant;
 - runtime and failure rate for larger p.
 
 ## Minimum Main-Text Benchmark Set

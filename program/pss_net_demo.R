@@ -7,9 +7,11 @@ rm(list = ls())
 #   1. simulate a standard sparse nonlinear additive-ODE system whose edges
 #      roughly follow a scale-free (hub) topology, and its perturbed
 #      steady-state (PSS) data (x*, u);
-#   2. run ADSIHT inference (double sparsity, no-intercept monomial basis,
-#      centred + scaled design, Jacobian for edge signs). Default = the joint
-#      block-diagonal solve over the whole network; node-wise is optional.
+#   2. run ADSIHT inference (double sparsity, no-intercept SINDy-style basis
+#      library -- monomial by default, polynomial/fourier presets, or a fully
+#      custom function library -- centred + scaled design, Jacobian for edge
+#      signs). Default = the joint block-diagonal solve over the whole network;
+#      node-wise is optional.
 #   3. report recovery metrics and draw the true vs inferred directed signed
 #      network on the active graphics device (no files are written).
 #
@@ -26,7 +28,67 @@ suppressMessages({
   library(igraph)
 })
 
-M_ord <- 2L  # monomial basis order: [x, x^2] per node (no intercept)
+## ============================ 0. basis library (SINDy-style) =================
+# A "basis" is a library of univariate functions phi_m applied to each source
+# node's steady state x_i. The additive model uses
+#   f_ji(x_i) = sum_m theta_jim * phi_m(x_i),
+# i.e. each source enters through the SAME library (SINDy-style feature
+# dictionary). Because every source shares one library of size M, the ADSIHT
+# group vector is DERIVED automatically -- one group per source, each of size M
+# -- so a custom library never needs a hand-built group.
+#
+# Constraints:
+#   * every phi_m must satisfy phi_m(0) = 0 (no intercept) so the steady-state
+#     identity f_ji(0) = 0 holds (centred + scaled design recovers the rest);
+#   * supplying analytic derivatives dphi_m (dfuncs) gives exact Jacobian edge
+#     signs; otherwise a central finite-difference derivative is used.
+#
+# Presets:
+#   "monomial"/"polynomial": x, x^2, ..., x^order   (default order = 2)
+#   "fourier"             : x, sin(k x), cos(k x)-1 for k = 1..order
+#   "custom"              : user supplies funcs (+ optional dfuncs, labels)
+make_basis <- function(type = c("monomial", "polynomial", "fourier", "custom"),
+                       order = 2L, funcs = NULL, dfuncs = NULL, labels = NULL) {
+  type <- match.arg(type)
+  if (type == "monomial" || type == "polynomial") {
+    pw <- seq_len(order)
+    funcs  <- lapply(pw, function(m) { force(m); function(x) x^m })
+    dfuncs <- lapply(pw, function(m) { force(m); function(x) m * x^(m - 1) })
+    labels <- ifelse(pw == 1L, "x", paste0("x^", pw))
+  } else if (type == "fourier") {
+    ks <- seq_len(order)
+    sin_f  <- lapply(ks, function(k) { force(k); function(x) sin(k * x) })
+    sin_df <- lapply(ks, function(k) { force(k); function(x)  k * cos(k * x) })
+    cos_f  <- lapply(ks, function(k) { force(k); function(x) cos(k * x) - 1 })
+    cos_df <- lapply(ks, function(k) { force(k); function(x) -k * sin(k * x) })
+    funcs  <- c(list(function(x) x), sin_f, cos_f)
+    dfuncs <- c(list(function(x) rep(1, length(x))), sin_df, cos_df)
+    labels <- c("x", paste0("sin(", ks, "x)"), paste0("cos(", ks, "x)-1"))
+  } else {  # custom
+    if (is.null(funcs) || length(funcs) == 0L)
+      stop("custom basis needs a non-empty 'funcs' list of phi_m(x).")
+  }
+  M <- length(funcs)
+  if (is.null(labels)) labels <- paste0("phi", seq_len(M))
+  if (is.null(dfuncs)) {  # central finite-difference fallback
+    dfuncs <- lapply(funcs, function(f) {
+      force(f)
+      function(x) { h <- 1e-6; (f(x + h) - f(x - h)) / (2 * h) }
+    })
+  }
+  list(funcs = funcs, dfuncs = dfuncs, labels = labels, M = M, type = type)
+}
+
+# Evaluate the library on every source column: column block i (of width M) holds
+# phi_1(x_i), ..., phi_M(x_i). Returns an N x (p*M) no-intercept design.
+build_design <- function(X, basis) {
+  p <- ncol(X); M <- basis$M
+  Psi <- matrix(0, nrow(X), p * M)
+  for (i in seq_len(p)) for (m in seq_len(M)) {
+    Psi[, (i - 1L) * M + m] <- basis$funcs[[m]](X[, i])
+  }
+  Psi
+}
 
 ## ============================ 1. standard nonlinear PSS simulation ===========
 # Additive ODE:  dx_j/dt = r_j + sum_{i!=j} (A_ji x_i + B_ji x_i^2)
@@ -116,11 +178,13 @@ steady_many <- function(sys, U) {
 }
 
 ## ============================ 2. PSS-Net inference ===========================
-# Centred + scaled no-intercept monomial design. For target j the steady-state
-# equation gives -u_j = sum_i f_ji(x_i) + (self term), so we regress the centred
-# -u_j on Psi(X). Group = source node (double sparsity: group selects sources,
-# within-group selects monomials). Edge signs come from the Jacobian
-# d f_ji/dx_i = theta1 + 2 theta2 x_ref at a reference state x_ref.
+# Centred + scaled no-intercept design built from a SINDy-style basis library
+# (see make_basis). For target j the steady-state equation gives
+# -u_j = sum_i f_ji(x_i) + (self term), so we regress the centred -u_j on
+# Psi(X). Group = source node (double sparsity: group selects sources,
+# within-group selects which library terms phi_m are active). The group vector
+# is derived from the library size M, so any custom basis works unchanged. Edge
+# signs come from the Jacobian d f_ji/dx_i = sum_m theta_jim phi_m'(x_ref_i).
 #
 # method = "joint" (default): one ADSIHT solve over the block-diagonal design
 #   X = I_p (x) Psi_cs with group = rep(1:(p*p), each = M) (CLAUDE.md rule); the
@@ -129,30 +193,27 @@ steady_many <- function(sys, U) {
 #   it is slow / memory-heavy for large p (warned at p > 100).
 # method = "nodewise": p independent ADSIHT solves; cheaper, the default for
 #   large or homogeneous networks.
-pss_net <- function(U, X, M_ord = 2L, method = c("joint", "nodewise"),
+pss_net <- function(U, X, basis = make_basis(), method = c("joint", "nodewise"),
                     x_ref = NULL, edge_tol = 1e-8) {
   method <- match.arg(method)
-  p <- ncol(X)
+  p <- ncol(X); M <- basis$M
   if (is.null(x_ref)) x_ref <- colMeans(X)
   if (method == "joint" && p > 100L) {
     warning(sprintf(paste0("joint block-diagonal design is O(p^2 M) wide ",
             "(here %d x %d); p > 100 may be slow or memory-heavy -- ",
-            "consider method = 'nodewise'."), nrow(X) * p, p * p * M_ord))
+            "consider method = 'nodewise'."), nrow(X) * p, p * p * M))
   }
 
-  Psi <- matrix(0, nrow(X), p * M_ord)
-  for (i in seq_len(p)) for (m in seq_len(M_ord)) {
-    Psi[, (i - 1L) * M_ord + m] <- X[, i]^m
-  }
+  Psi <- build_design(X, basis)
   Psi_c <- sweep(Psi, 2, colMeans(Psi))
   sdv <- pmax(apply(Psi_c, 2, sd), 1e-10)
   Psi_cs <- sweep(Psi_c, 2, sdv, "/")
   rhs <- sapply(seq_len(p), function(j) -(U[, j] - mean(U[, j])))  # N x p
 
-  theta <- matrix(0, p * M_ord, p)  # column j: node j's p*M coefficients
+  theta <- matrix(0, p * M, p)  # column j: node j's p*M coefficients
   failed <- 0L
   if (method == "nodewise") {
-    group <- rep(seq_len(p), each = M_ord)
+    group <- rep(seq_len(p), each = M)
     for (j in seq_len(p)) {
       fit <- tryCatch(ADSIHT(Psi_cs, matrix(rhs[, j]), group, ic.type = "dsic"),
                       error = function(e) NULL)
@@ -162,31 +223,32 @@ pss_net <- function(U, X, M_ord = 2L, method = c("joint", "nodewise"),
   } else {
     Xbig <- kronecker(diag(p), Psi_cs)            # (N*p) x (p^2 * M)
     Ybig <- as.vector(rhs)                        # stack node responses
-    group <- rep(seq_len(p * p), each = M_ord)    # one group per (target, source)
+    group <- rep(seq_len(p * p), each = M)        # one group per (target, source)
     fit <- tryCatch(ADSIHT(Xbig, matrix(Ybig), group, ic.type = "dsic"),
                     error = function(e) NULL)
     if (is.null(fit)) {
       failed <- p
     } else {
       beta <- fit$beta[, which.min(fit$ic)]
-      pM <- p * M_ord
+      pM <- p * M
       for (j in seq_len(p)) theta[, j] <- beta[((j - 1L) * pM + 1):(j * pM)] / sdv
     }
   }
 
   adj <- matrix(0L, p, p)
   jac <- matrix(0, p, p)
+  dphi <- basis$dfuncs
   for (j in seq_len(p)) for (i in seq_len(p)) {
-    cols <- (i - 1L) * M_ord + seq_len(M_ord)
+    cols <- (i - 1L) * M + seq_len(M)
     th <- theta[cols, j]
     if (sqrt(sum(th^2)) >= edge_tol) adj[j, i] <- 1L
-    t2 <- if (M_ord >= 2L) th[2] else 0
-    jac[j, i] <- th[1] + 2 * t2 * x_ref[i]
+    jac[j, i] <- sum(vapply(seq_len(M),
+                            function(m) th[m] * dphi[[m]](x_ref[i]), 0))
   }
   diag(adj) <- 0L
   diag(jac) <- 0
   list(adj = adj, jac = jac, theta = theta, x_ref = x_ref, method = method,
-       failed_nodes = failed, M_ord = M_ord)
+       failed_nodes = failed, basis = basis, M_ord = M)
 }
 
 ## ============================ 3. metrics =====================================
@@ -261,10 +323,11 @@ plot_pss_networks <- function(sys, fit) {
 
 ## ============================ 5. run the demo ================================
 run_pss_demo <- function(p = 10L, topology = "scalefree", N = 200L, snr = 30,
-                         seed = 1L, method = "joint", plot = interactive()) {
+                         seed = 1L, method = "joint", basis = make_basis(),
+                         plot = interactive()) {
   sys <- simulate_pss_nonlinear(p = p, topology = topology, N = N, snr = snr,
                                 seed = seed)
-  t0 <- system.time(fit <- pss_net(sys$U, sys$X_obs, M_ord = M_ord,
+  t0 <- system.time(fit <- pss_net(sys$U, sys$X_obs, basis = basis,
                                    method = method, x_ref = sys$x_wt))[["elapsed"]]
   true_jac <- sys$A + 2 * sys$B * matrix(sys$x_wt, sys$p, sys$p, byrow = TRUE)
   m <- edge_metrics(fit$adj, sys$adj, fit$jac, true_jac)
@@ -275,8 +338,9 @@ run_pss_demo <- function(p = 10L, topology = "scalefree", N = 200L, snr = 30,
               100 * sum(sys$adj) / (sys$p * (sys$p - 1))))
   cat(sprintf("PSS data      : N = %d conditions, SNR = %g, sigma = %.3f\n",
               sys$n_eff, sys$snr, sys$sigma))
-  cat(sprintf("inference     : %s ADSIHT, basis [x, x^2], %.2fs, %d node(s) empty\n",
-              fit$method, t0, fit$failed_nodes))
+  cat(sprintf("inference     : %s ADSIHT, %s basis [%s], %.2fs, %d node(s) empty\n",
+              fit$method, fit$basis$type, paste(fit$basis$labels, collapse = ", "),
+              t0, fit$failed_nodes))
   cat("---------------- edge recovery ----------------\n")
   cat(sprintf("TP=%d  FP=%d  FN=%d\n", m$TP, m$FP, m$FN))
   cat(sprintf("Precision=%.3f  Recall=%.3f  MCC=%.3f  SignAcc=%.3f\n",

@@ -11,7 +11,10 @@ rm(list = ls())
 #          per (regime, N, seed). All methods use package defaults or a single
 #          documented default threshold -- no per-method tuning. Threshold-free
 #          AUROC/AUPRC are the primary fair metrics; MCC/precision/recall use each
-#          method's default selection; sign accuracy where a signed effect exists.
+#          method's documented selection (PSS-Net and aiMeRA both use
+#          abs(row-normalized link) > 0.05 in the main comparison);
+#          signed local-Jacobian and edge-function errors quantify strength
+#          recovery, with linear and nonlinear Jacobian contributions separated.
 #
 # Methods (see ref/external_benchmark_methods.md):
 #   PSS_Net      node-wise ADSIHT, double sparsity            (uses u, nonlinear)
@@ -31,7 +34,53 @@ rm(list = ls())
 #
 # Input:   none
 # Output:  results/sim_results/Fig3b_external_benchmark_main.csv
+#          (includes M_ord, EdgeJacRMSE/NRMSE, EdgeLinearJacRMSE,
+#           EdgeNonlinearJacRMSE, and FuncRMSE/NRMSE)
 ################################################################################
+
+# Resolve the project root from either the Rscript --file argument or the current
+# working directory. This keeps relative inputs/outputs stable when the script is
+# launched from RStudio, PowerShell, Terminal, or a directory outside the repo.
+find_project_root <- function() {
+  file_arg <- grep("^--file=", commandArgs(trailingOnly = FALSE), value = TRUE)
+  starts <- getwd()
+  if (length(file_arg) > 0L) {
+    script_file <- sub("^--file=", "", file_arg[[1L]])
+    starts <- c(dirname(path.expand(script_file)), starts)
+  }
+  source_files <- unlist(lapply(sys.frames(), function(frame) {
+    if (is.null(frame$ofile)) character(0) else frame$ofile
+  }), use.names = FALSE)
+  if (length(source_files) > 0L) {
+    starts <- c(dirname(path.expand(source_files)), starts)
+  }
+
+  for (start in unique(starts)) {
+    current <- normalizePath(start, winslash = "/", mustWork = FALSE)
+    repeat {
+      is_root <- file.exists(file.path(
+        current, "requirements", "fig3b-pysindy.txt"
+      )) && file.exists(file.path(
+        current, "sim_script", "03_robustness_benchmarks",
+        "Fig3b_external_benchmark_main.R"
+      ))
+      if (is_root) return(current)
+      parent <- dirname(current)
+      if (identical(parent, current)) break
+      current <- parent
+    }
+  }
+  stop(
+    "Cannot locate the PSS-Net project root. Run this script from inside the ",
+    "repository or invoke it with Rscript path/to/Fig3b_external_benchmark_main.R."
+  )
+}
+
+project_root <- find_project_root()
+if (!identical(normalizePath(getwd(), winslash = "/", mustWork = TRUE),
+               project_root)) {
+  setwd(project_root)
+}
 
 if (!requireNamespace("aiMeRA", quietly = TRUE)) {
   stop(paste0(
@@ -57,24 +106,67 @@ suppressMessages({
   library(ppcor)
 })
 
-# Pin the original-author Python implementation. Set PSSNET_PYTHON to a Python
-# executable containing this package when reticulate should not use its default.
+# Pin the original-author Python implementation. Python executable discovery is
+# deliberately explicit and cross-platform. Priority:
+#   1. PSSNET_PYTHON (project-specific override);
+#   2. RETICULATE_PYTHON (if it names an existing executable);
+#   3. a project virtual environment on Windows or Unix/macOS;
+#   4. python3/python on PATH.
 pysindy_commit <- "c4421fcec275c8f4cc5c1e93bebb961b212067ae"
-local_python <- file.path(getwd(), ".venv-fig3b-standalone", "Scripts", "python.exe")
-python_exe <- Sys.getenv("PSSNET_PYTHON", unset = local_python)
-if (!nzchar(python_exe)) {
-  stop(paste0(
-    "Set PSSNET_PYTHON to a directly accessible Python executable containing ",
-    "PySINDy. The Windows Store app alias cannot be used by reticulate here."
-  ))
+python_override <- Sys.getenv("PSSNET_PYTHON", unset = "")
+reticulate_override <- Sys.getenv("RETICULATE_PYTHON", unset = "")
+
+if (nzchar(python_override)) {
+  python_override <- path.expand(python_override)
+  if (!file.exists(python_override)) {
+    stop("PSSNET_PYTHON does not exist: ", python_override)
+  }
+  python_exe <- python_override
+} else {
+  override_candidates <- if (nzchar(reticulate_override) &&
+                             file.exists(path.expand(reticulate_override))) {
+    path.expand(reticulate_override)
+  } else {
+    character(0)
+  }
+  venv_dirs <- c(".venv-fig3b-standalone", ".venv-fig3b", ".python-fig3b")
+  venv_rel <- unlist(lapply(venv_dirs, function(venv) c(
+    file.path(venv, "Scripts", "python.exe"), # Windows virtualenv
+    file.path(venv, "bin", "python"),         # macOS/Linux virtualenv
+    file.path(venv, "bin", "python3")
+  )), use.names = FALSE)
+  local_candidates <- file.path(project_root, venv_rel)
+  path_candidates <- unname(Sys.which(c("python3", "python")))
+  candidates <- unique(c(override_candidates, local_candidates, path_candidates))
+  candidates <- candidates[nzchar(candidates) & file.exists(candidates)]
+  if (length(candidates) == 0L) {
+    stop(
+      "No usable Python executable found. Create .venv-fig3b in the project ",
+      "root or set PSSNET_PYTHON to its Python executable (bin/python on ",
+      "macOS; Scripts/python.exe on Windows)."
+    )
+  }
+  python_exe <- candidates[[1L]]
 }
-if (!file.exists(python_exe)) stop("PSSNET_PYTHON does not exist: ", python_exe)
+# Canonicalize only the parent directory. On macOS/Linux, venv/bin/python is a
+# symlink to the base interpreter; normalizing the full path resolves that link
+# and makes reticulate lose the virtual environment's site-packages.
+python_exe <- file.path(
+  normalizePath(dirname(python_exe), winslash = "/", mustWork = TRUE),
+  basename(python_exe)
+)
+# RETICULATE_PYTHON has higher precedence than use_python(); align it with the
+# executable selected above so an inherited setting cannot silently switch OS or
+# architecture-specific environments.
+Sys.setenv(RETICULATE_PYTHON = python_exe)
 reticulate::use_python(python_exe, required = TRUE)
 if (!reticulate::py_module_available("pysindy")) {
+  requirements_file <- file.path(project_root, "requirements", "fig3b-pysindy.txt")
   stop(paste0(
-    "Python package 'pysindy' is required. Install the audited official source: ",
-    "python -m pip install 'git+https://github.com/dynamicslab/pysindy.git@",
-    pysindy_commit, "'"
+    "Python package 'pysindy' (audited commit ", pysindy_commit,
+    ") is not installed in ", python_exe, ". Install the audited source with:\n  ",
+    shQuote(python_exe),
+    " -m pip install -r ", shQuote(requirements_file)
   ))
 }
 pysindy <- reticulate::import("pysindy", delay_load = FALSE)
@@ -82,6 +174,8 @@ pysindy_version <- as.character(pysindy$`__version__`)
 message("PySINDy backend: ", pysindy_version, " [", reticulate::py_config()$python, "]")
 
 set.seed(303)
+# Match the fitted polynomial library [x, x^2] to the maximum order used by the
+# simulation truth. Higher-order library robustness is handled separately.
 M_ord <- 2L
 
 ## ============================ shared simulation (from Fig1c) ==================
@@ -191,12 +285,22 @@ rank_metrics <- function(score, truth) {
 }
 
 ## ============================ node-wise coefficient fitters ===================
-# Each returns an unscaled coefficient vector of length p * M_ord.
+# PSS-Net additionally returns the discrete support selected by ADSIHT/DSIC.
+# Other fitters return an unscaled coefficient vector of length p * M_ord and
+# retain their native nonzero-coefficient selection rule in run_nodewise().
 fit_adsiht <- function(Xcs, y, group, scale) {
   fit <- tryCatch(ADSIHT(Xcs, matrix(y), group, ic.type = "dsic"),
                   error = function(e) NULL)
-  if (is.null(fit)) return(rep(0, length(scale)))
-  as.numeric(fit$beta[, which.min(fit$ic)] / scale)
+  empty <- list(beta = rep(0, length(scale)), selected_groups = integer(0))
+  if (is.null(fit) || length(fit$ic) == 0L) return(empty)
+  best <- which.min(fit$ic)
+  selected_variables <- fit$A_out[[best]]
+  selected_groups <- if (length(selected_variables) == 0L) integer(0) else
+    sort(unique(group[selected_variables]))
+  list(
+    beta = as.numeric(fit$beta[, best] / scale),
+    selected_groups = selected_groups
+  )
 }
 
 make_fit_glmnet <- function(alpha) {
@@ -228,32 +332,83 @@ fit_pysindy_stlsq <- function(Xcs, y, group, scale) {
   as.numeric(fit$coef_) / scale
 }
 
-# Edge sign is read from the Jacobian d f_ji/dx_i = theta1 + 2 theta2 x_ref at a
-# reference state x_ref (project convention), not from the linear monomial alone,
-# so nonlinear-basis methods are scored fairly.
-run_nodewise <- function(fit_fn, p, Uc, std, group, x_ref) {
-  score <- matrix(0, p, p)
+# Evaluate the fitted polynomial Jacobian at one reference state. Keeping the
+# full diagonal here is necessary for the row-normalized threshold audit.
+jacobian_from_coef <- function(coef, x_ref, zero_diagonal = FALSE) {
+  p <- dim(coef)[1]
   jac <- matrix(0, p, p)
-  c1 <- matrix(0, p, p)
-  c2 <- matrix(0, p, p)
+  powers <- seq_len(dim(coef)[3])
+  for (j in seq_len(p)) for (i in seq_len(p)) {
+    jac[j, i] <- sum(powers * coef[j, i, ] * x_ref[i]^(powers - 1L))
+  }
+  if (zero_diagonal) diag(jac) <- 0
+  jac
+}
+
+# Edge sign is read from the full polynomial Jacobian at a reference state
+# x_ref (project convention), not from the linear monomial alone. run_nodewise()
+# retains ADSIHT's minimum-DSIC A_out; the main PSS-Net result subsequently maps
+# its fitted Jacobian to the row-normalized link used for ranking and selection.
+run_nodewise <- function(fit_fn, p, Uc, std, group, x_ref,
+                         support_from_fit = FALSE) {
+  score <- matrix(0, p, p)
+  selected <- matrix(0L, p, p)
+  coef <- array(0, dim = c(p, p, M_ord))
   el <- system.time({
     for (j in seq_len(p)) {
-      b <- fit_fn(std$X, -Uc[, j], group, std$scale)
+      fit_result <- fit_fn(std$X, -Uc[, j], group, std$scale)
+      if (support_from_fit) {
+        if (!is.list(fit_result) || is.null(fit_result$beta) ||
+            is.null(fit_result$selected_groups)) {
+          stop("A support-aware fitter must return beta and selected_groups.")
+        }
+        b <- fit_result$beta
+        if (length(fit_result$selected_groups) > 0L) {
+          selected[j, fit_result$selected_groups] <- 1L
+        }
+      } else {
+        b <- fit_result
+      }
       score[j, ] <- group_norms(b, p)
       for (i in seq_len(p)) {
-        t1 <- b[(i - 1L) * M_ord + 1L]
-        t2 <- if (M_ord >= 2L) b[(i - 1L) * M_ord + 2L] else 0
-        c1[j, i] <- t1
-        c2[j, i] <- t2
-        jac[j, i] <- t1 + 2 * t2 * x_ref[i]
+        cols <- (i - 1L) * M_ord + seq_len(M_ord)
+        coef[j, i, ] <- b[cols]
       }
     }
   })[["elapsed"]]
+  if (!support_from_fit) selected <- (score > 1e-8) * 1L
   diag(score) <- 0
+  diag(selected) <- 0L
+  jac <- jacobian_from_coef(coef, x_ref, zero_diagonal = TRUE)
   diag(jac) <- 0
-  list(score = score, sel = (score > 1e-8) * 1L, sign = sign(jac),
-       jac = jac, coef1 = c1, coef2 = c2, runtime = el,
+  list(score = score, sel = selected, sign = sign(jac),
+       jac = jac, coef = coef, runtime = el,
+       selection_rule = if (support_from_fit) "minimum_DSIC_A_out" else
+         "native_nonzero_after_fit",
+       score_scale = "absolute_group_norm",
        failed = as.integer(all(score == 0)))
+}
+
+# Put PSS-Net on the same local-response scale used by aiMeRA for edge ranking
+# and binary selection. The fitted absolute-scale Jacobian is retained in
+# res$jac for strength recovery; only score/sel/sign use the normalized link.
+use_row_normalized_link <- function(res, x_ref, edge_cutoff = 0.05) {
+  jac_full <- jacobian_from_coef(res$coef, x_ref)
+  row_scale <- -diag(jac_full)
+  invalid_scale <- !is.finite(row_scale) | abs(row_scale) < 1e-8
+  row_scale[invalid_scale] <- NA_real_
+  link <- sweep(jac_full, 1, row_scale, "/")
+  link[!is.finite(link)] <- 0
+  diag(link) <- 0
+
+  res$score <- abs(link)
+  res$sel <- (res$score > edge_cutoff) * 1L
+  res$sign <- sign(link)
+  res$link <- link
+  res$selection_rule <- sprintf("abs(row_normalized_link)>%g", edge_cutoff)
+  res$score_scale <- "row_normalized_link"
+  res$invalid_row_scale <- sum(invalid_scale)
+  res
 }
 
 # Classical MRA using the published aiMeRA package (v0.99.0). aiMeRA expects a
@@ -293,7 +448,9 @@ run_aimeRA <- function(p, Uc, X_obs, edge_cutoff = 0.05) {
   diag(score) <- 0
   diag(link) <- 0
   list(score = score, sel = (score > edge_cutoff) * 1L, sign = sign(link),
-       jac = link, jac_scale = "row_normalized", coef1 = NULL, coef2 = NULL,
+       jac = link, jac_scale = "row_normalized", coef = NULL,
+       selection_rule = sprintf("abs(row_normalized_link)>%g", edge_cutoff),
+       score_scale = "row_normalized_link",
        runtime = el, failed = failed)
 }
 
@@ -317,7 +474,8 @@ run_cor <- function(p, X_obs) {
     sel <- sel + t(sel)
   })[["elapsed"]]
   list(score = score, sel = sel, sign = signmat, jac = NULL,
-       coef1 = NULL, coef2 = NULL, runtime = el,
+       coef = NULL, runtime = el,
+       selection_rule = "BH_FDR<0.05", score_scale = "absolute_correlation",
        failed = as.integer(all(score == 0)))
 }
 
@@ -339,30 +497,74 @@ run_pcor <- function(p, X_obs) {
     sel <- sel + t(sel)
   })[["elapsed"]]
   list(score = score, sel = sel, sign = signmat, jac = NULL,
-       coef1 = NULL, coef2 = NULL, runtime = el,
+       coef = NULL, runtime = el,
+       selection_rule = "BH_FDR<0.05",
+       score_scale = "absolute_partial_correlation",
        failed = as.integer(all(score == 0)))
 }
 
 ## ============================ unified benchmark metrics =======================
-# Edge-function shape error: for each true edge compare the fitted edge function
-# f_hat(x) = theta1 x + theta2 x^2 with the true f(x) = A x + B x^2 over the source
-# node's observed range extended by `ext` (so it also probes extrapolation). This
-# is where nonlinear-basis methods can separate from linear/local methods.
-# theta2 = 0). Methods without an edge function -> NA.
-func_rmse <- function(coef1, coef2, A, B, X_obs, truth_adj, ext = 1.5, ng = 25L) {
-  if (is.null(coef1)) return(NA_real_)
+# Edge-function shape error: for each true edge compare the full fitted
+# polynomial with f_true(x) = A x + B x^2 over the observed source range,
+# extended by `ext` to probe modest extrapolation. FuncNRMSE divides each edge's
+# RMSE by its true RMS function magnitude before averaging across edges.
+edge_function_metrics <- function(coef, A, B, X_obs, truth_adj,
+                                  ext = 1.5, ng = 25L) {
+  if (is.null(coef)) {
+    return(c(FuncRMSE = NA_real_, FuncNRMSE = NA_real_))
+  }
   p <- nrow(A)
-  errs <- c()
+  powers <- seq_len(dim(coef)[3])
+  rmse <- nrmse <- c()
   for (j in seq_len(p)) for (i in seq_len(p)) {
     if (i != j && truth_adj[j, i] == 1) {
       xr <- range(X_obs[, i])
       xg <- seq(xr[1], xr[2] * ext, length.out = ng)
       ftrue <- A[j, i] * xg + B[j, i] * xg^2
-      fhat <- coef1[j, i] * xg + coef2[j, i] * xg^2
-      errs <- c(errs, sqrt(mean((fhat - ftrue)^2)))
+      fhat <- vapply(xg, function(x) {
+        sum(coef[j, i, ] * x^powers)
+      }, numeric(1))
+      edge_rmse <- sqrt(mean((fhat - ftrue)^2))
+      true_rms <- sqrt(mean(ftrue^2))
+      rmse <- c(rmse, edge_rmse)
+      nrmse <- c(nrmse, edge_rmse / pmax(true_rms, 1e-12))
     }
   }
-  if (length(errs) == 0L) NA_real_ else mean(errs)
+  if (length(rmse) == 0L) {
+    c(FuncRMSE = NA_real_, FuncNRMSE = NA_real_)
+  } else {
+    c(FuncRMSE = mean(rmse), FuncNRMSE = mean(nrmse))
+  }
+}
+
+# Decompose local edge strength at x_ref into the linear derivative theta_1 and
+# the nonlinear derivative sum_{m>=2} m theta_m x_ref^(m-1). Both components are
+# on the Jacobian scale, so their RMSE values can be compared and add up to the
+# total fitted local effect. The simulation truth has quadratic B and zero cubic
+# coefficient; a fitted cubic contribution is therefore counted as error.
+edge_strength_metrics <- function(coef, A, B, x_ref, truth_adj) {
+  empty <- c(EdgeLinearJacRMSE = NA_real_,
+             EdgeNonlinearJacRMSE = NA_real_)
+  if (is.null(coef)) return(empty)
+  p <- nrow(A)
+  te <- which(row(truth_adj) != col(truth_adj) & truth_adj == 1)
+  if (length(te) == 0L) return(empty)
+
+  linear_est <- coef[, , 1L]
+  nonlinear_est <- matrix(0, p, p)
+  if (dim(coef)[3] >= 2L) {
+    for (m in 2:dim(coef)[3]) {
+      nonlinear_est <- nonlinear_est +
+        m * coef[, , m] * matrix(x_ref^(m - 1L), p, p, byrow = TRUE)
+    }
+  }
+  nonlinear_true <- 2 * B * matrix(x_ref, p, p, byrow = TRUE)
+  c(
+    EdgeLinearJacRMSE = sqrt(mean((linear_est[te] - A[te])^2)),
+    EdgeNonlinearJacRMSE = sqrt(mean(
+      (nonlinear_est[te] - nonlinear_true[te])^2
+    ))
+  )
 }
 
 # J_true is the true local Jacobian at the reference state (off-diagonal); methods
@@ -388,13 +590,14 @@ bench_metrics <- function(res, truth_adj, A_true, B_true, J_true, X_obs) {
     for (k in off) {
       j <- ro[k]; i <- co[k]
       if (truth_adj[j, i] == 1 && res$sel[j, i] == 1) {
-        sign_ok <- c(sign_ok, sign(res$sign[j, i]) == sign(A_true[j, i]))
+        sign_ok <- c(sign_ok, sign(res$sign[j, i]) == sign(J_true[j, i]))
       }
     }
   }
   signacc <- ifelse(length(sign_ok) == 0, NA_real_, mean(sign_ok))
   if (is.null(res$jac)) {
     jac_rmse <- NA_real_; edge_jac_rmse <- NA_real_
+    edge_jac_nrmse <- NA_real_
   } else {
     J_cmp <- J_true
     if (identical(res$jac_scale, "row_normalized")) {
@@ -402,13 +605,24 @@ bench_metrics <- function(res, truth_adj, A_true, B_true, J_true, X_obs) {
     }
     jac_rmse <- sqrt(mean((res$jac[off] - J_cmp[off])^2))
     te <- off[truth_adj[off] == 1]
-    edge_jac_rmse <- if (length(te) > 0L)
-      sqrt(mean((res$jac[te] - J_cmp[te])^2)) else NA_real_
+    if (length(te) > 0L) {
+      edge_jac_rmse <- sqrt(mean((res$jac[te] - J_cmp[te])^2))
+      edge_jac_nrmse <- edge_jac_rmse /
+        pmax(sqrt(mean(J_cmp[te]^2)), 1e-12)
+    } else {
+      edge_jac_rmse <- edge_jac_nrmse <- NA_real_
+    }
   }
-  fr <- func_rmse(res$coef1, res$coef2, A_true, B_true, X_obs, truth_adj)
+  strength <- edge_strength_metrics(
+    res$coef, A_true, B_true, colMeans(X_obs), truth_adj
+  )
+  function_error <- edge_function_metrics(
+    res$coef, A_true, B_true, X_obs, truth_adj
+  )
   c(AUROC = unname(rk[1]), AUPRC = unname(rk[2]), Precision = pr, Recall = re,
     F1 = f1, MCC = mcc, SignAcc = signacc, JacRMSE = jac_rmse,
-    EdgeJacRMSE = edge_jac_rmse, FuncRMSE = fr, TP = TP, FP = FP, FN = FN,
+    EdgeJacRMSE = edge_jac_rmse, EdgeJacNRMSE = edge_jac_nrmse,
+    strength, function_error, TP = TP, FP = FP, FN = FN,
     n_pred = sum(e), runtime_sec = res$runtime, failed = res$failed)
 }
 
@@ -479,31 +693,28 @@ for (seed in seq_len(R)) {
       diag(J_true) <- -sys$gamma
       results <- list()
       for (m in names(nodewise_methods)) {
-        results[[m]] <- run_nodewise(nodewise_methods[[m]], p, Uc, std, group, x_ref)
+        results[[m]] <- run_nodewise(
+          nodewise_methods[[m]], p, Uc, std, group, x_ref,
+          support_from_fit = identical(m, "PSS_Net")
+        )
       }
       if (threshold_audit) {
         pss <- results[["PSS_Net"]]
+        pss$selection_rule <- "minimum_DSIC_A_out"
+        pss$score_scale <- "absolute_group_norm"
 
         # Direct absolute-Jacobian threshold. This is numerically 0.05, but is
         # not on aiMeRA's row-normalized link scale.
         pss_abs <- pss
         pss_abs$score <- abs(pss$jac)
         pss_abs$sel <- (pss_abs$score > 0.05) * 1L
+        pss_abs$selection_rule <- "abs(absolute_Jacobian)>0.05"
+        pss_abs$score_scale <- "absolute_Jacobian"
 
         # Like-for-like aiMeRA scale: normalize each fitted equation by minus
         # its fitted self-Jacobian so the diagonal is -1, then apply 0.05.
-        jac_full <- pss$coef1 + 2 * pss$coef2 *
-          matrix(x_ref, p, p, byrow = TRUE)
-        row_scale <- -diag(jac_full)
-        row_scale[!is.finite(row_scale) | abs(row_scale) < 1e-8] <- NA_real_
-        link <- sweep(jac_full, 1, row_scale, "/")
-        link[!is.finite(link)] <- 0
-        diag(link) <- 0
-        pss_norm <- pss
-        pss_norm$score <- abs(link)
-        pss_norm$sel <- (pss_norm$score > 0.05) * 1L
-        pss_norm$sign <- sign(link)
-        pss_norm$jac <- link
+        pss_norm <- use_row_normalized_link(pss, x_ref, edge_cutoff = 0.05)
+        pss_norm$jac <- pss_norm$link
         pss_norm$jac_scale <- "row_normalized"
 
         results <- list(
@@ -512,6 +723,11 @@ for (seed in seq_len(R)) {
           PSS_Net_rowNorm_0.05 = pss_norm
         )
       } else {
+        # Main PSS-Net result: same row-normalized score and 0.05 cutoff as MRA.
+        # Absolute coefficients/Jacobian remain attached for recovery metrics.
+        results[["PSS_Net"]] <- use_row_normalized_link(
+          results[["PSS_Net"]], x_ref, edge_cutoff = 0.05
+        )
         results[["aiMeRA"]] <- run_aimeRA(p, Uc, X_obs)
         results[["Correlation"]] <- run_cor(p, X_obs)
         results[["PartialCor"]] <- run_pcor(p, X_obs)
@@ -525,9 +741,13 @@ for (seed in seq_len(R)) {
         jac_scale <- if (is.null(results[[m]]$jac)) "not_applicable" else
           if (is.null(results[[m]]$jac_scale)) "absolute" else results[[m]]$jac_scale
         rows[[length(rows) + 1L]] <- data.frame(
-          seed = seed, p = p, s_in = s_in, N = N, n_eff = nrow(X),
+          seed = seed, p = p, s_in = s_in, M_ord = M_ord,
+          N = N, n_eff = nrow(X),
           N_over_slogp = N / base, truth = truth, snr = snr_level,
-          method = m, JacScale = jac_scale, t(mets), stringsAsFactors = FALSE
+          method = m, JacScale = jac_scale,
+          ScoreScale = results[[m]]$score_scale,
+          SelectionRule = results[[m]]$selection_rule,
+          t(mets), stringsAsFactors = FALSE
         )
       }
       cat(sprintf("seed=%d truth=%-9s N=%3d done\n", seed, truth, N))
@@ -548,7 +768,14 @@ write.csv(df, out, row.names = FALSE)
 cat("\nSaved:", out, "\n")
 print(aggregate(cbind(MCC, AUPRC) ~ truth + method,
                 df, mean, na.rm = TRUE), row.names = FALSE)
-print(aggregate(JacRMSE ~ truth + method + JacScale,
+print(aggregate(cbind(JacRMSE, EdgeJacRMSE, EdgeJacNRMSE) ~
+                  truth + method + JacScale,
                 df, mean, na.rm = TRUE), row.names = FALSE)
-print(aggregate(FuncRMSE ~ truth + method,
-                df, mean, na.rm = TRUE), row.names = FALSE)
+coef_df <- df[is.finite(df$EdgeLinearJacRMSE) &
+                is.finite(df$EdgeNonlinearJacRMSE), ]
+print(aggregate(cbind(EdgeLinearJacRMSE, EdgeNonlinearJacRMSE) ~
+                  truth + method,
+                coef_df, mean, na.rm = TRUE), row.names = FALSE)
+func_df <- df[is.finite(df$FuncRMSE) & is.finite(df$FuncNRMSE), ]
+print(aggregate(cbind(FuncRMSE, FuncNRMSE) ~ truth + method,
+                func_df, mean, na.rm = TRUE), row.names = FALSE)

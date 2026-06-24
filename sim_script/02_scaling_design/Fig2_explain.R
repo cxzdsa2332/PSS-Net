@@ -225,13 +225,7 @@ if (requireNamespace("patchwork", quietly = TRUE)) {
     Fig2_design_concept_maximin +
     Fig2_design_concept_oracle +
     Fig2_design_concept_pilot +
-    patchwork::plot_layout(nrow = 1) +
-    patchwork::plot_annotation(
-      title = "Perturbation design after a shared pilot experiment"
-    ) &
-    theme(
-      plot.title = element_text(face = "bold", size = 12)
-    )
+    patchwork::plot_layout(nrow = 1)
 } else {
   Fig2_design_concept <- Fig2_design_concept_pilot
 }
