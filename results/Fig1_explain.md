@@ -1,69 +1,108 @@
-# Fig1 主要结果解释草稿
+# Fig1 解释：PSS 数据来源、可识别边界与基础恢复
 
-本文档根据当前 `sim_script/01_foundation_recovery/Fig1.R` 与 `results/sim_results/Fig1c_adsiht_group_lasso_scaling.csv` 的结果整理，用于后续撰写 Results 小节。当前版本仍是初步模拟，主文前建议增加重复数并固定最终排版。
+## 主叙事
 
-## 总体信息
+Fig1 要回答的是：PSS-Net 到底从什么信息中恢复网络。核心叙事是，PSS-Net 并不直接拟合完整 ODE 时间轨迹，而是利用多个扰动条件达到稳态后的 `(x*, u)`，把这些稳态切片转化为对调控函数的约束。在合适的可识别条件、噪声水平和函数库下，这些稳态信息足以恢复 sparse support、edge direction/sign，并给出可解释的局部边函数形状。
 
-图 1 的核心信息是：PSS-Net 并不是从静态相关样本中直接画网络，而是利用扰动稳态数据 `(x*, u)` 约束 ODE 的稳态方程。该图按逻辑分为三层：第一层说明数据如何由 ODE 动力学产生；第二层说明 PSS 数据能识别稳态函数形状，但不能任意区分所有瞬态机制；第三层展示 ADSIHT 在有限噪声和有限样本下可以恢复函数形状与有向带符号网络。
+这张图也要明确边界：PSS 数据不能无条件恢复完整瞬态机制；二阶多项式库不是万能函数逼近器；噪声、稳态覆盖范围和字典错设都会影响函数形状恢复。
 
-## Fig1a：ODE 动力学产生 PSS 测量
+## Panel a：ODE dynamics generate perturbed steady-state measurements
 
-Fig1a 使用历史 8 节点参数，对比 additive ODE 与 multiplicative gLV ODE。在 baseline、single-node input 和 mixed input 三种扰动下，轨迹先演化到稳态，黑色垂直虚线处的终点即实际用于 PSS-Net 的观测 `x*`。该面板的写作重点是：PSS-Net 的输入不是时间序列，而是多个扰动条件下的稳态切片；但这些稳态切片仍然来自明确的 ODE 生成机制。
+Fig1a 展示 additive ODE 与 gLV ODE 在 baseline、single-node input 和 mixed input 下如何从动态轨迹收敛到稳态。黑色虚线处的终点才是 PSS-Net 使用的观测。
 
-## Fig1b：稳态函数形状的可识别边界
+该 panel 的重点是：
 
-Fig1b 表明 PSS 数据可以支持稳态函数形状识别，但需要明确边界。在线性 additive ODE 与标准 gLV ODE 中，二者可导出相同或近似等价的线性稳态约束，因此加入二次基函数并不会得到正的 BIC 支持。相反，在真正非线性的 additive ODE 中，二次基函数获得正的 BIC gain，说明 PSS 数据能够检测稳态函数形状的非线性。
+- PSS-Net 的输入不是时间序列，而是扰动后的稳态响应；
+- 这些稳态响应仍来自明确的 ODE 生成机制；
+- 不同扰动 `u` 改变系统的稳态位置，从而提供恢复调控函数的信息。
 
-SNR 辅助扫描进一步显示，非线性识别依赖测量质量：低 SNR 时二次项选择率明显下降，约 `SNR < 20` 基本不稳定，`20-30` 为过渡区，`SNR >= 50` 较稳定。这个结果适合写成方法边界，而不是过度宣称 PSS 能恢复完整瞬态机制。
+## Panel b：steady-state function shape has an identifiable boundary
 
-## Fig1c：ADSIHT 与 group lasso 的基础恢复比较（线性 vs 非线性）
+Fig1b 对比 additive linear、standard gLV 和 additive nonlinear 三类机制的稳态函数形状与 BIC 选择结果。线性 additive ODE 与 standard gLV 在稳态方程层面可能产生近似线性的约束，因此二次基函数不一定得到支持；真正 additive nonlinear ODE 才会让二次项获得稳定的 BIC gain。
 
-Fig1c 在 `p = 8, 30, 100` 下比较 node-wise ADSIHT 与 node-wise group lasso，并在**线性**与**非线性**两类真值系统上各跑一遍。两类真值共享同一组 `A`、`r` 与扰动设计，仅区别在二次项 `B` 是否激活：线性真值用闭式稳态，非线性真值（约半数边带 `b != 0` 的弯曲项）通过积分加性 ODE 得到稳态，因此非线性情形同时考察组稀疏（选哪个源）与组内稀疏（选哪个单项式），与 Fig1d/e/f 的模型类一致。样本预算按 `N / (s log p)` 扫描，观测噪声固定为 `SNR = 30`，`sigma_x = signal_scale / 30`。当前结果文件含 1440 行，即 3 个维度 × 4 个样本预算 × 30 个重复 × 2 类真值 × 2 种方法。
+SNR 扫描说明非线性识别依赖测量质量。当前结果显示低 SNR 时二次项选择率不稳定，约 `SNR = 20–30` 是过渡区，更高 SNR 下非线性稳态签名更容易被检测到。
 
-绘图上线性用虚线、非线性用实线，方法用颜色区分（ADSIHT 蓝、group lasso 红）；因四条线叠加，已去掉 ±sd 阴影带，仅保留均值线与点。
+写作时应强调：Fig1b 证明的是“稳态函数形状在一定条件下可识别”，而不是“PSS 数据能区分所有可能的动态机制”。
 
-按所有样本预算和 30 个重复求平均，主要结果如下：
+## Panel c：ADSIHT vs group lasso scaling
 
-| p | method | truth | MCC | AUPRC | AUROC | CoefL2 |
-|---|--------|-------|-----|-------|-------|--------|
-| 8 | ADSIHT | linear | 0.886 | 0.916 | 0.975 | 0.357 |
-| 8 | ADSIHT | nonlinear | 0.876 | 0.924 | 0.976 | 0.534 |
-| 30 | ADSIHT | linear | 0.912 | 0.956 | 0.997 | 0.255 |
-| 30 | ADSIHT | nonlinear | 0.900 | 0.954 | 0.994 | 0.464 |
-| 100 | ADSIHT | linear | 0.898 | 0.966 | 0.999 | 0.209 |
-| 100 | ADSIHT | nonlinear | 0.892 | 0.958 | 0.999 | 0.414 |
-| 8 | GroupLasso | linear | 0.438 | 0.719 | 0.847 | 0.534 |
-| 8 | GroupLasso | nonlinear | 0.422 | 0.725 | 0.861 | 0.712 |
-| 30 | GroupLasso | linear | 0.786 | 0.919 | 0.976 | 0.343 |
-| 30 | GroupLasso | nonlinear | 0.741 | 0.886 | 0.971 | 0.768 |
-| 100 | GroupLasso | linear | 0.924 | 0.945 | 0.981 | 0.386 |
-| 100 | GroupLasso | nonlinear | 0.907 | 0.912 | 0.973 | 0.529 |
+Fig1c 比较 node-wise ADSIHT 与 group lasso 在 linear/nonlinear truth 下的网络恢复。设置为：
 
-结果解读应保持克制，可归纳为三点：
+- `p = 8, 30, 100`
+- `s_in = 2, 3, 3`
+- `N/(s log p) = 4, 8, 12, 16`
+- `SNR = 30`
+- `R = 30`
+- CSV：`results/sim_results/Fig1c_adsiht_group_lasso_scaling.csv`
+- 当前结果：1440 行，无 NA
 
-1. **方法排序是主导效应。** ADSIHT 在 p=8、p=30 的 MCC/AUPRC/AUROC 明显优于 group lasso（如 p=8 MCC 约 0.88 vs 0.42–0.44），且优势在线性与非线性两类真值下都成立；这印证 ADSIHT 的组内稀疏能在弯曲边上保留二次项、在线性边上剔除二次项，而 group lasso 在低维过度选择（precision 仅约 0.45）。
-2. **线性与非线性曲线接近。** 引入非线性只带来较小的 MCC/precision 代价与更高的 CoefL2（曲率确实更难拟合），方法间相对排序不变。因此 Fig1c 的样本复杂度结论对模型是否线性是**稳健**的——这是展示两类真值的主要理由，建议在正文/图注中以一句话说明。
-3. **高维下两法趋同。** p=100 时 group lasso 的 MCC 略高（更高 precision、更低 recall），ADSIHT 反之（更高 recall、更高 AUPRC/AUROC）；高维二分类边集指标应结合阈值与 precision-recall trade-off 解释，而非单看 MCC。
+按所有预算平均，ADSIHT 的 MCC 大致为：
 
-## Fig1d：推断函数可回到动态效应解释
+| p | linear MCC | nonlinear MCC |
+|---|---:|---:|
+| 8 | 0.886 | 0.876 |
+| 30 | 0.912 | 0.900 |
+| 100 | 0.898 | 0.892 |
 
-Fig1d 使用固定 10 节点非线性加性 ODE，展示两个目标节点的 integrated self effect、received regulation 以及二者之和。真实曲线与 ADSIHT 推断曲线使用实线/虚线对照。该面板的重点不是证明 PSS 数据直接提供瞬态轨迹，而是说明：一旦从 PSS 方程估计出可解释的加性函数，模型可以把扰动后状态变化拆解为 self feedback 和 received cross-node regulation，从而形成动态层面的解释。
+Group lasso 的平均 MCC 为：
 
-## Fig1e：稳态函数形状恢复
+| p | linear MCC | nonlinear MCC |
+|---|---:|---:|
+| 8 | 0.438 | 0.422 |
+| 30 | 0.786 | 0.741 |
+| 100 | 0.924 | 0.907 |
 
-Fig1e 展示同一 10 节点系统中，ADSIHT 对代表性 self feedback 和 cross-node effect functions 的恢复。真实函数与推断函数在多个源-靶对上大体重合，包括线性边和带二次项的非线性边。该面板支持 Fig1b 的正向部分：在有足够扰动覆盖和合理 SNR 时，PSS 数据不仅能恢复边是否存在，还能恢复边函数的稳态形状。
+解读上有三点：
 
-## Fig1f：真实网络与推断网络
+1. ADSIHT 在低维和中等维度下明显优于 group lasso，尤其 p=8 和 p=30。
+2. linear 与 nonlinear truth 的曲线接近，说明 ADSIHT 的 sparse recovery 对是否存在二次边函数相对稳健。
+3. p=100 时 group lasso 的 MCC 可略高，但 ADSIHT 的 AUPRC/AUROC 和 recall 仍很强；因此高维处不要只用 MCC 做绝对优劣判断。
 
-Fig1f 将同一 10 节点系统的真实有向网络与 ADSIHT 推断网络并排展示。边方向为 source 到 target；促进作用用红色，抑制作用用蓝色；推断网络中 TP、FP 和 FN 通过线型与灰色辅助显示。该面板把 Fig1d/Fig1e 的函数恢复结果汇总为网络层面的视觉证据，说明 PSS-Net 可以输出有方向、有符号、可追溯到函数形状的调控网络。
+## Panel d：effect decomposition links inferred functions to dynamics
+
+Fig1d 在固定 10 节点非线性加性系统中，将目标节点状态变化分解为 self effect 与 received regulation。真实曲线和 ADSIHT 推断曲线相互对照。
+
+该 panel 是代表性机制可视化，不是 Monte Carlo 统计结果。它说明：一旦 PSS-Net 从稳态方程中估计出加性调控函数，就可以把网络边重新解释为动态贡献，而不是只输出一张无方向相关图。
+
+## Panel e：steady-state edge-function recovery
+
+Fig1e 展示代表性 self feedback 和 cross-node edge functions 的 true vs estimated 曲线。它支持 Fig1b 和 Fig1d 的正向部分：在扰动覆盖充分、SNR 合理且函数库匹配时，PSS-Net 不只恢复边是否存在，还能恢复边函数的局部形状。
+
+## Panel f：true vs inferred directed signed network
+
+Fig1f 将同一 10 节点系统的真实网络与推断网络并排展示。促进边和抑制边用颜色区分，TP/FP/FN 用线型区分。
+
+该 panel 的作用是把 Fig1d/e 的函数恢复汇总到网络层面，展示 PSS-Net 输出的是 directed、signed、function-backed network。
+
+## Panel g：basis robustness and misspecification
+
+Fig1g 检查 quadratic、Monod、sine truth 在 linear/poly2/poly3/Monod/Fourier 等拟合库下的表现。设置为：
+
+- `p = 20`
+- `s_in = 2`
+- `SNR = 30`
+- `R = 30`
+- 单一充足预算
+- CSV：`results/sim_results/Fig1x_basis_misspecification.csv`
+- 当前结果：450 行，无 NA
+
+主要结论是：
+
+- support recovery 对 fitted library 的错设相对稳健，MCC 多数约在 `0.79–0.92`；
+- edge-function NRMSE 明显依赖字典匹配；
+- 例如 poly2 truth 下 poly2 library 的 function NRMSE 最低，Monod truth 下 Monod library 的 function NRMSE 最低。
+
+因此 Fig1g 的主旨应写成：support recovery can be robust to moderate library misspecification, but accurate edge-function recovery benefits from a matched dictionary.
 
 ## 建议写作口径
 
-图 1 的主结论可以写成：PSS-Net converts perturbed steady-state measurements into interpretable constraints on an underlying ODE system, recovers steady-state coupling functions under identifiable settings, and yields directed signed networks with competitive sparse recovery across dimensions.
+推荐主结论：
 
-需要避免的过度表述：
+> PSS-Net converts perturbed steady-state measurements into constraints on underlying regulatory functions, enabling recovery of directed signed sparse networks and local edge-function shapes when the steady-state response is identifiable and the function library is adequate.
 
-- 不应说 PSS 数据单独恢复完整瞬态机制；
-- 不应把 Fig1c 写成 ADSIHT 在所有指标和所有维度上绝对优于 group lasso；
-- Fig1c 现为 `R = 30` 重复、线性与非线性两类真值，可作为稳定趋势引用；其余面板若进入主文仍需对齐重复数；
-- Fig1d-Fig1f 是单 seed 展示性结果，应作为代表性机制可视化，而非总体性能统计。
+需要避免：
+
+- 不说 PSS 数据单独恢复完整 ODE 瞬态机制；
+- 不说二阶库能表示所有非线性；
+- 不把 Fig1d/e/f 的单 seed 示例写成总体统计；
+- 不把 ADSIHT 描述成在所有维度和所有指标上都绝对优于 group lasso。

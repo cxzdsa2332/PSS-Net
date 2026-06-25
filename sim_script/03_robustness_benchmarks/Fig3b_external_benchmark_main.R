@@ -644,7 +644,7 @@ truth_grid <- c("linear", "strong_nonlinear")
 u_lo <- -0.3
 u_hi <- 1.5
 snr_level <- 30
-R <- 10L
+R <- 30L
 # Quick smoke-test hook: FIG3B_R / FIG3B_K override repeats and budget.
 if (nzchar(Sys.getenv("FIG3B_R"))) R <- as.integer(Sys.getenv("FIG3B_R"))
 if (nzchar(Sys.getenv("FIG3B_K"))) {

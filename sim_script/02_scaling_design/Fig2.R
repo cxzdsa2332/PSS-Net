@@ -5,7 +5,7 @@ rm(list = ls())
 #
 # Purpose: build Figure 2 scaling/design panel objects from existing simulation
 #          result files.
-#            Fig2a -- high-dimensional sample complexity of node-wise ADSIHT
+#            Fig2a -- high-dimensional sample complexity of node-wise PSS-Net
 #                     under sparse PSS systems.
 #            Fig2b -- conceptual 3D input-space design mechanism.
 #            Fig2c -- regime-by-budget map of MCC gain over random (D-optimal
@@ -169,7 +169,7 @@ Fig2a_highdim_sample_complexity <- ggplot(
     x = expression("sample budget " * N / (s * log(p))),
     y = "MCC",
     color = NULL,
-    title = "Node-wise ADSIHT sample complexity follows the sparse budget scale"
+    title = "Node-wise PSS-Net sample complexity follows the sparse budget scale"
   ) +
   theme_classic(base_size = 10) +
   theme(

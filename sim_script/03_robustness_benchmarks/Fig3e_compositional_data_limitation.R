@@ -70,7 +70,7 @@ mcc_of <- function(est, true) {
 
 ## ----------------------------------------------------------- 主循环 ----
 inputs <- c("abs", "rel", "clr", "rel_x_T")
-R <- 10; N <- 200; p <- 10; sigma_rel <- 0.05; T_cv <- 0.15
+R <- 30; N <- 200; p <- 10; sigma_rel <- 0.05; T_cv <- 0.15
 rows <- list()
 for (seed in seq_len(R)) {
   sys <- make_system(p = p, s_in = 3, seed = 500 + seed)

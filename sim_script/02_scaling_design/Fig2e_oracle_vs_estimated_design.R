@@ -209,7 +209,7 @@ edge_metrics <- function(est, truth) {
 pilot_grid <- c(8L, 12L, 16L)
 total_grid <- c(20L, 30L, 40L, 60L)
 strategies <- c("random", "maximin", "oracle_dopt", "pilot_dopt")
-R <- 20L
+R <- 30L
 sigma <- 0.04
 n_pool <- 2500L
 

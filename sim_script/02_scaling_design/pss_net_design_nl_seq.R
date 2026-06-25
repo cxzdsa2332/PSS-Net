@@ -192,7 +192,7 @@ coef_l2 <- function(sys, theta_hat) {
 N_grid <- c(12, 16, 20, 30, 40, 60)
 N_max <- max(N_grid)
 strategies <- c("random", "maximin", "dopt")
-R <- 20
+R <- 30
 sigma <- 0.04
 
 rows <- list()

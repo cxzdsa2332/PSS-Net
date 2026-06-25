@@ -78,7 +78,7 @@ fig3a_df <- data.frame(
                       levels = fig3a_caps),
   value = as.vector(fig3a_values)
 )
-fig3a_df$glyph <- c("·", "~", "✓")[match(fig3a_df$value, c(0, 0.5, 1))]
+fig3a_df$glyph <- c("No", "Partial", "Yes")[match(fig3a_df$value, c(0, 0.5, 1))]
 fig3a_df$val_f <- factor(fig3a_df$value, levels = c(0, 0.5, 1))
 
 # Highlight the PSS-Net row (top of the reversed factor).
@@ -88,7 +88,7 @@ Fig3a_method_capability_matrix <- ggplot(
   fig3a_df, aes(x = capability, y = method, fill = val_f)
 ) +
   geom_tile(color = "white", linewidth = 0.7) +
-  geom_text(aes(label = glyph), size = 3.1, color = "grey15") +
+  geom_text(aes(label = glyph), size = 2.35, color = "grey15") +
   annotate("rect", xmin = 0.5, xmax = length(fig3a_caps) + 0.5,
            ymin = fig3a_hi - 0.5, ymax = fig3a_hi + 0.5,
            fill = NA, color = "#2E6F9E", linewidth = 0.9) +

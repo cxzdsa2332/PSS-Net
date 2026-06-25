@@ -194,7 +194,7 @@ slogp <- n_in * log(p_design)
 k_grid <- c(1.5, 2, 2.5, 3, 4, 6, 8)
 N_grid <- unique(ceiling(k_grid * slogp))
 strategies <- c("random", "maximin", "dopt")
-R <- 20
+R <- 30
 snr_level <- 30                                # 与 Fig1c 一致的相对噪声水平
 
 rows <- list()

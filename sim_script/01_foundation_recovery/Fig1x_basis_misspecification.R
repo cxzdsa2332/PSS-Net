@@ -217,7 +217,7 @@ s_in <- 2L
 base <- s_in * log(p)
 N <- ceiling(20 * base)            # one generous budget: isolate library effect
 snr_level <- 30
-R <- 8L
+R <- 30L
 u_lo <- -0.3
 u_hi <- 1.5
 truth_grid <- c("poly2", "monod", "sine")

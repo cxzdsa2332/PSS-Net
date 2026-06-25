@@ -159,7 +159,7 @@ hub_of <- function(adj_est, sys) {
 ## ----------------------------------------------------------- main loop ----
 p <- 50L; avg_in <- 2
 k_grid <- c(2, 3, 4, 5)
-R <- 10
+R <- 30
 sigma <- 0.03
 topologies <- c("scalefree", "er")
 
