@@ -26,13 +26,6 @@
   doi     = {10.1371/journal.pone.0094003}
 }
 
-@article{wu2014sparse,
-  author  = {Wu, Shuang and Wu, Hulin},
-  title   = {More Powerful Significant Testing for Time Course Gene Expression Data Using Functional Principal Component Analysis Approaches},
-  journal = {BMC Bioinformatics},
-  year    = {2014},
-  note    = {Sparse additive ODEs for dynamic gene regulatory network recovery}
-}
 
 % ===== 双稀疏推断 ADSIHT（元数据已据 arXiv:2305.04182 核对）=====
 @article{zhang2023minimax,
@@ -337,12 +330,16 @@
 }
 
 % ===== 超越两两互作 / 高阶互作（非线性互作的动机）=====
-@article{maynard2024beyond,
-  author  = {Maynard, Daniel S. and others},
+@article{ishizawa2024beyond,
+  author  = {Ishizawa, Hidehiro and Tashiro, Yosuke and Inoue, Daisuke and
+             Ike, Michihiko and Futamata, Hiroyuki},
   title   = {Learning Beyond-Pairwise Interactions Enables the Bottom-Up
              Prediction of Microbial Community Structure},
   journal = {Proceedings of the National Academy of Sciences},
   year    = {2024},
+  volume  = {121},
+  number  = {7},
+  pages   = {e2312396121},
   doi     = {10.1073/pnas.2312396121}
 }
 
@@ -446,6 +443,19 @@
 }
 
 % ===== Modular Response Analysis package and benchmark datasets =====
+@article{kholodenko2002untangling,
+  author  = {Kholodenko, Boris N. and Kiyatkin, Anatoly and Bruggeman, Frank J. and
+             Sontag, Eduardo and Westerhoff, Hans V. and Hoek, Jan B.},
+  title   = {Untangling the Wires: A Strategy to Trace Functional Interactions
+             in Signaling and Gene Networks},
+  journal = {Proceedings of the National Academy of Sciences of the United States of America},
+  year    = {2002},
+  volume  = {99},
+  number  = {20},
+  pages   = {12841--12846},
+  doi     = {10.1073/pnas.192442699}
+}
+
 @article{jimenezdominguez2021aimera,
   author  = {Jimenez-Dominguez, Gabriel and Ravel, Patrice and Jalaguier, Sylvain and
              Cavaill{è}s, Vincent and Colinge, Jacques},
@@ -540,4 +550,254 @@
   note   = {R package version 1.1},
   doi    = {10.32614/CRAN.package.ppcor},
   url    = {https://CRAN.R-project.org/package=ppcor}
+}
+
+% ===== External network-inference baselines used in Fig3 positioning/benchmarks =====
+@article{friedman2010glmnet,
+  author  = {Friedman, Jerome and Hastie, Trevor and Tibshirani, Robert},
+  title   = {Regularization Paths for Generalized Linear Models via Coordinate Descent},
+  journal = {Journal of Statistical Software},
+  year    = {2010},
+  volume  = {33},
+  number  = {1},
+  pages   = {1--22},
+  doi     = {10.18637/jss.v033.i01}
+}
+
+@article{yang2015groupbmd,
+  author  = {Yang, Yi and Zou, Hui},
+  title   = {A Fast Unified Algorithm for Solving Group-Lasso Penalized Learning Problems},
+  journal = {Statistics and Computing},
+  year    = {2015},
+  volume  = {25},
+  number  = {6},
+  pages   = {1129--1141},
+  doi     = {10.1007/s11222-014-9498-5}
+}
+
+@article{huynhthu2010genie3,
+  author  = {Huynh-Thu, V{\^a}n Anh and Irrthum, Alexandre and Wehenkel, Louis and
+             Geurts, Pierre},
+  title   = {Inferring Regulatory Networks from Expression Data Using Tree-Based Methods},
+  journal = {PLOS ONE},
+  year    = {2010},
+  volume  = {5},
+  number  = {9},
+  pages   = {e12776},
+  doi     = {10.1371/journal.pone.0012776}
+}
+
+@article{moerman2019grnboost2,
+  author  = {Moerman, Thomas and Aibar Santos, Sara and Bravo Gonz{\'a}lez-Blas, Carmen and
+             Simm, Jaak and Moreau, Yves and Aerts, Jan and Aerts, Stein},
+  title   = {{GRNBoost2} and {Arboreto}: Efficient and Scalable Inference of Gene
+             Regulatory Networks},
+  journal = {Bioinformatics},
+  year    = {2019},
+  volume  = {35},
+  number  = {12},
+  pages   = {2159--2161},
+  doi     = {10.1093/bioinformatics/bty916}
+}
+
+@article{hauser2015gies,
+  author  = {Hauser, Alain and B{\"u}hlmann, Peter},
+  title   = {Jointly Interventional and Observational Data: Estimation of
+             Interventional Markov Equivalence Classes of Directed Acyclic Graphs},
+  journal = {Journal of the Royal Statistical Society: Series B (Statistical Methodology)},
+  year    = {2015},
+  volume  = {77},
+  number  = {1},
+  pages   = {291--318},
+  doi     = {10.1111/rssb.12071}
+}
+
+@article{friedman2012sparcc,
+  author  = {Friedman, Jonathan and Alm, Eric J.},
+  title   = {Inferring Correlation Networks from Genomic Survey Data},
+  journal = {PLOS Computational Biology},
+  year    = {2012},
+  volume  = {8},
+  number  = {9},
+  pages   = {e1002687},
+  doi     = {10.1371/journal.pcbi.1002687}
+}
+
+%==============================================================================
+% 复杂系统 / 网络动力学逆问题：引言 Block 1 高影响力背景文献
+% （元数据 2026-06-26 经 Europe PMC / Semantic Scholar / Crossref 核对，
+%  原文摘录见 actual_citation/）
+%==============================================================================
+
+@article{strogatz2001exploring,
+  author  = {Strogatz, Steven H.},
+  title   = {Exploring Complex Networks},
+  journal = {Nature},
+  year    = {2001},
+  volume  = {410},
+  number  = {6825},
+  pages   = {268--276},
+  doi     = {10.1038/35065725}
+}
+
+@article{timme2014revealing,
+  author  = {Timme, Marc and Casadiego, Jose},
+  title   = {Revealing Networks from Dynamics: An Introduction},
+  journal = {Journal of Physics A: Mathematical and Theoretical},
+  year    = {2014},
+  volume  = {47},
+  number  = {34},
+  pages   = {343001},
+  doi     = {10.1088/1751-8113/47/34/343001}
+}
+
+@article{wang2016databased,
+  author  = {Wang, Wen-Xu and Lai, Ying-Cheng and Grebogi, Celso},
+  title   = {Data Based Identification and Prediction of Nonlinear and Complex
+             Dynamical Systems},
+  journal = {Physics Reports},
+  year    = {2016},
+  volume  = {644},
+  pages   = {1--76},
+  doi     = {10.1016/j.physrep.2016.06.004}
+}
+
+@article{turing1952chemical,
+  author  = {Turing, Alan M.},
+  title   = {The Chemical Basis of Morphogenesis},
+  journal = {Philosophical Transactions of the Royal Society of London. Series B,
+             Biological Sciences},
+  year    = {1952},
+  volume  = {237},
+  number  = {641},
+  pages   = {37--72},
+  doi     = {10.1098/rstb.1952.0012}
+}
+
+@article{buffie2015precision,
+  author  = {Buffie, Charlie G. and Bucci, Vanni and Stein, Richard R. and
+             McKenney, Peter T. and Ling, Lilan and Gobourne, Asia and No, Daniel and
+             Liu, Hui and Kinnebrew, Melissa and Viale, Agnes and Littmann, Eric and
+             van den Brink, Marcel R. M. and Jenq, Robert R. and Taur, Ying and
+             Sander, Chris and Cross, Justin R. and Toussaint, Nora C. and
+             Xavier, Jo{\~a}o B. and Pamer, Eric G.},
+  title   = {Precision Microbiome Reconstitution Restores Bile Acid Mediated
+             Resistance to {Clostridium} difficile},
+  journal = {Nature},
+  year    = {2015},
+  volume  = {517},
+  number  = {7533},
+  pages   = {205--208},
+  doi     = {10.1038/nature13828}
+}
+
+%==============================================================================
+% ODE / 数据驱动动力学建模与网络推断：引言 Block 2 近年高影响力文献
+% （元数据 2026-06-26 经 Crossref / Semantic Scholar / OpenAlex 核对，
+%  原文摘录见 actual_citation/）
+%==============================================================================
+
+@article{karniadakis2021physics,
+  author  = {Karniadakis, George Em and Kevrekidis, Ioannis G. and Lu, Lu and
+             Perdikaris, Paris and Wang, Sifan and Yang, Liu},
+  title   = {Physics-Informed Machine Learning},
+  journal = {Nature Reviews Physics},
+  year    = {2021},
+  volume  = {3},
+  number  = {6},
+  pages   = {422--440},
+  doi     = {10.1038/s42254-021-00314-5}
+}
+
+@article{gao2022autonomous,
+  author  = {Gao, Ting-Ting and Yan, Gang},
+  title   = {Autonomous Inference of Complex Network Dynamics from Incomplete
+             and Noisy Data},
+  journal = {Nature Computational Science},
+  year    = {2022},
+  volume  = {2},
+  number  = {3},
+  pages   = {160--168},
+  doi     = {10.1038/s43588-022-00217-0}
+}
+
+@article{barabasi1999emergence,
+  author  = {Barab{\'a}si, Albert-L{\'a}szl{\'o} and Albert, R{\'e}ka},
+  title   = {Emergence of Scaling in Random Networks},
+  journal = {Science},
+  year    = {1999},
+  volume  = {286},
+  number  = {5439},
+  pages   = {509--512},
+  doi     = {10.1126/science.286.5439.509}
+}
+
+@article{chen2017network,
+  author  = {Chen, Shizhe and Shojaie, Ali and Witten, Daniela M.},
+  title   = {Network Reconstruction from High-Dimensional Ordinary Differential
+             Equations},
+  journal = {Journal of the American Statistical Association},
+  year    = {2017},
+  volume  = {112},
+  number  = {520},
+  pages   = {1697--1707},
+  doi     = {10.1080/01621459.2016.1229197}
+}
+
+%==============================================================================
+% 拟时序 / 轨迹推断：将快照数据排成伪时间再做时序式推断（引言 Block 3）
+% （元数据 2026-06-26 经 Europe PMC 核对，原文摘录见 actual_citation/）
+%==============================================================================
+
+@article{trapnell2014pseudotime,
+  author  = {Trapnell, Cole and Cacchiarelli, Davide and Grimsby, Jonna and
+             Pokharel, Prapti and Li, Shuqiang and Morse, Michael and
+             Lennon, Niall J. and Livak, Kenneth J. and Mikkelsen, Tarjei S. and
+             Rinn, John L.},
+  title   = {The Dynamics and Regulators of Cell Fate Decisions Are Revealed by
+             Pseudotemporal Ordering of Single Cells},
+  journal = {Nature Biotechnology},
+  year    = {2014},
+  volume  = {32},
+  number  = {4},
+  pages   = {381--386},
+  doi     = {10.1038/nbt.2859}
+}
+
+@article{haghverdi2016diffusion,
+  author  = {Haghverdi, Laleh and B{\"u}ttner, Maren and Wolf, F. Alexander and
+             Buettner, Florian and Theis, Fabian J.},
+  title   = {Diffusion Pseudotime Robustly Reconstructs Lineage Branching},
+  journal = {Nature Methods},
+  year    = {2016},
+  volume  = {13},
+  number  = {10},
+  pages   = {845--848},
+  doi     = {10.1038/nmeth.3971}
+}
+
+@article{matsumoto2017scode,
+  author  = {Matsumoto, Hirotaka and Kiryu, Hisanori and Furusawa, Chikara and
+             Ko, Minoru S. H. and Ko, Shigeru B. H. and Gouda, Norio and
+             Hayashi, Tetsutaro and Nikaido, Itoshi},
+  title   = {{SCODE}: An Efficient Regulatory Network Inference Algorithm from
+             Single-Cell {RNA}-Seq during Differentiation},
+  journal = {Bioinformatics},
+  year    = {2017},
+  volume  = {33},
+  number  = {15},
+  pages   = {2314--2321},
+  doi     = {10.1093/bioinformatics/btx194}
+}
+
+@article{saelens2019comparison,
+  author  = {Saelens, Wouter and Cannoodt, Robrecht and Todorov, Helena and
+             Saeys, Yvan},
+  title   = {A Comparison of Single-Cell Trajectory Inference Methods},
+  journal = {Nature Biotechnology},
+  year    = {2019},
+  volume  = {37},
+  number  = {5},
+  pages   = {547--554},
+  doi     = {10.1038/s41587-019-0071-9}
 }

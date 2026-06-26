@@ -15,6 +15,10 @@ These are the fairest statistical baselines because they can use the same respon
 
 Recommended role: main benchmark for demonstrating the value of double sparsity.
 
+Citation keys: `friedman2010glmnet` for lasso / elastic net via `glmnet`;
+`yang2015groupbmd` and `lounici2011group` for group-lasso implementations and
+theory; `brunton2016sindy` and `kaptanoglu2022pysindy` for SINDy / PySINDy.
+
 ### 2. Black-Box Directed Network Inference from State Data
 
 These methods typically use expression/state data only and do not use perturbation inputs. They provide an important bioinformatics comparator but answer a different question.
@@ -24,6 +28,9 @@ These methods typically use expression/state data only and do not use perturbati
 - dynGENIE3: time-series variant; include only if time-resolved simulated trajectories are generated.
 
 Recommended role: show how much perturbation input improves directed coupling recovery compared with state-only prediction.
+
+Citation keys: `huynhthu2010genie3` for GENIE3 and `moerman2019grnboost2` for
+GRNBoost2 / Arboreto.
 
 ### 3. Dynamical-System Discovery Methods
 
@@ -45,6 +52,9 @@ These methods usually infer undirected associations rather than directed perturb
 - SparCC: correlation estimation for compositional microbial data.
 
 Recommended role: compositional or microbiome-style stress tests; report that the target is association, not directed causal coupling.
+
+Citation keys: `kim2015ppcor` for partial correlation implementation,
+`kurtz2015sparse` for SPIEC-EASI, and `friedman2012sparcc` for SparCC.
 
 ### 5. Perturbation-Using Directed / Causal Inference
 
@@ -76,6 +86,10 @@ methods only.
 Recommended role: head-to-head directed-coupling comparators that also use `u`;
 report alongside the linear / nonlinear truth split so the linear-only methods (MRA)
 are judged where they are valid and where they break.
+
+Citation keys: `kholodenko2002untangling` for the classical MRA response-analysis
+framework, `jimenezdominguez2021aimera` for the package-backed aiMeRA implementation,
+and `hauser2015gies` for GIES.
 
 ## Default-Parameter Policy
 

@@ -1,26 +1,138 @@
 \section{Introduction}
 \label{sec:intro}
 
-% --- Motivation: microbial interaction networks ---
-% TODO: why interaction networks matter (ecology, gut microbiome, therapeutics).
+% =====================================================================
+% Block 1 — Network reconstruction as a core problem in complex systems
+% =====================================================================
+Many natural phenomena are usefully described as complex systems: large collections of
+components whose collective behaviour emerges from a web of nonlinear interactions
+\citep{strogatz2001exploring,barzel2013universality}. A central goal in their study is
+to recover the directed network of interactions that governs how the components of such
+a system influence one another \citep{barzel2013universality}. The same task recurs
+across domains --- gene regulatory networks in molecular biology, signalling cascades in
+cell biology, species-interaction networks in community ecology, and reaction--diffusion
+processes in chemical systems \citep{timme2014revealing,turing1952chemical} --- because
+these systems share a common mathematical core: each node evolves according to a rate
+law driven by the states of the nodes that act on it, so the network is the support of
+those driving terms. Recovering that support from observations of the system's dynamics,
+rather than measuring it directly, is fundamentally an inverse problem
+\citep{timme2014revealing,gao2022autonomous}. In microbial ecology, the
+structure of the interaction network among taxa shapes community assembly, stability,
+and resistance to invasion, and is increasingly viewed as a target for rational
+therapeutic design \citep{clark2021design,ishizawa2024beyond}. For example,
+modelling disrupted gut communities has identified protective species, such as
+\textit{Clostridium scindens}, whose reintroduction can restore colonization resistance
+against \textit{C. difficile}, a major cause of antibiotic-associated diarrhoea
+\citep{buffie2015precision}.
 
-% --- Limitations of existing approaches ---
-% TODO: gLV linearity, time-series + numerical differentiation noise, SINDy.
-% Cite: gLV inference, MDSINE, SINDy, Stein 2013.
+% =====================================================================
+% Block 2 — ODE modelling of dynamical networks: the parametric dilemma
+% =====================================================================
+Ordinary differential equations (ODEs) provide the natural language for this core: each
+component's rate of change is a function of the current state, so the interaction
+network is encoded directly in the right-hand-side functions, and reconstructing it
+reduces to learning those functions and their support from data --- a goal driving rapid
+recent progress at the interface of dynamical-systems modelling and machine learning
+\citep{karniadakis2021physics,gao2022autonomous}. Two modelling choices then determine
+what can be recovered. The first is the functional form of each interaction. A rigid
+parametric form --- in the limit a single coefficient per interaction --- is
+interpretable but cannot represent effects that saturate, switch sign, or act
+nonlinearly, even though qualitatively distinct system-level behaviour follows from the
+\emph{form} of the local interaction functions, not merely their sign
+\citep{barzel2013universality}. Nonparametric additive ODE models avoid this commitment:
+each node's rate is a sum of univariate functions of the other nodes, replacing
+coefficients with smooth components while preserving an interpretable edge-wise
+decomposition \citep{henderson2014network,wu2014saode,chen2017network}. The second choice is
+regularization. Because real interaction networks are sparse --- most components are
+directly influenced by only a few others, often with heavy-tailed connectivity
+\citep{barabasi1999emergence} --- imposing sparsity on which univariate components are
+nonzero turns estimation into network recovery. Coupling nonlinear additive ODEs with
+group- and element-level sparsity scales this idea to genome-wide networks
+\citep{dong2026multitask}, making sparse additive ODEs a practical route to large,
+nonlinear, directed network inference.
 
-% --- The perturbed steady-state idea ---
-The perturbed steady-state approach was introduced by \citet{meister2013pss}
-for gene regulatory networks. % TODO: extend the narrative to microbial communities.
+% =====================================================================
+% Block 3 — Data paradigms: time-series vs perturbed steady state
+% =====================================================================
+The prevailing paradigm in such ODE modelling is time-series inference: trajectories
+are sampled over time, the derivative of each state is estimated, and these estimated
+rates are regressed on candidate driving terms. This underlies both generalized
+Lotka--Volterra (gLV) engines such as MDSINE \citep{bucci2016mdsine} and library-based
+discovery of nonlinear dynamics, as in
+sparse identification of nonlinear dynamics (SINDy)
+\citep{brunton2016sindy,kaptanoglu2022pysindy}, including recent applications to
+microbial pairwise interactions \citep{sindy2023microbiota}. Such approaches are
+powerful when high-quality trajectories are available, but this requirement is often
+the limiting factor in biological and ecological systems. Accurate derivative
+estimation requires dense sampling during transient regimes, whereas experiments
+typically provide noisy, irregular, and sparse abundance measurements; in microbial
+communities, repeated high-density sampling can be invasive, costly, or simply
+infeasible, and the number of interacting taxa can far exceed the number of observed
+time points \citep{stein2013ecological,bucci2016mdsine}. Pseudo-time approaches partly
+relax the need for explicit time stamps by ordering snapshot measurements along an
+inferred trajectory --- for instance a principal or diffusion coordinate --- so as to
+emulate a time course \citep{trapnell2014pseudotime,haghverdi2016diffusion}, after which
+dynamics and regulatory networks can be inferred with ODE-based methods that treat
+pseudotime as time \citep{matsumoto2017scode}. Yet the inferred ordering is itself
+uncertain and strongly method-dependent \citep{saelens2019comparison}, and the
+downstream step still reduces to estimating rates along a reconstructed trajectory. The
+resulting numerical-differentiation problem is ill posed and amplifies measurement
+error, making time-series-based network recovery fragile precisely in the low-budget
+settings where network inference is most needed.
 
-% --- Nonparametric additive ODE + double sparsity ---
-% TODO: position relative to \citet{henderson2014network} and \citet{wu2014sparse};
-% role of ADSIHT \citep{zhang2023minimax}; universality \citep{barzel2013universality}.
+These limitations motivate a complementary paradigm that sidesteps the derivative
+entirely by working at equilibrium. In microbial ecology, steady-state abundance data
+alone can reveal network topology and interaction signs without assuming a dynamics
+model, recovering interaction strengths only once a fixed (e.g. gLV) form is imposed
+\citep{xiao2017mapping}. More broadly, modular response analysis recovers the topology
+and strength of network connections from the steady-state responses of a system to
+successive perturbations of its components
+\citep{kholodenko2002untangling,jimenezdominguez2021aimera}, and scales to systems with
+hundreds of nodes \citep{mekedem2022mra}. However, these methods characterise
+interactions only locally or under a fixed parametric form, yielding a linearised
+interaction matrix rather than the underlying nonlinear couplings. The perturbed
+steady-state (\pss{}) approach of \citet{meister2013pss} for
+gene regulation makes the key structural observation that, by restricting attention to
+perturbed steady states where $dx/dt = 0$, a nonlinear ODE becomes an \emph{algebraic}
+system in the unknown interaction functions, removing the need to estimate time
+derivatives while retaining the nonlinear model. To date this reformulation has been
+exploited only with a fixed parametric (biophysics-based) rate law, leaving the
+nonparametric, network-scale setting open.
 
-% --- Contributions ---
+% =====================================================================
+% Block 4 — PSS-Net: nonparametric additive ODE with double sparsity
+% =====================================================================
+We propose \pss{}-Net to fill this gap. The central idea is to combine the algebraic
+\pss{} reformulation with a sparse additive ODE model: each directed interaction is
+represented by a univariate basis expansion, and the steady-state equations turn
+network recovery into a structured sparse-regression problem rather than a
+trajectory-differentiation problem. Sparsity is imposed at two levels, selecting both
+which source nodes regulate a target and which basis terms are needed to describe each
+retained edge function. We solve this double-sparse problem using the \adsiht{}
+estimator \citep{zhang2023minimax,cai2022sparsegroup}. In this sense, \pss{}-Net is
+closest in spirit to MRA because both exploit perturbation-induced steady-state
+responses, but it aims beyond a local linear response matrix by recovering sparse
+nonlinear edge functions and their local Jacobian signs. Thus, \pss{}-Net inherits the
+interpretable edge-wise structure of additive ODE network models
+\citep{henderson2014network,wu2014saode,chen2017network}, avoids numerical
+differentiation, and
+generalises parametric \pss{} inference \citep{meister2013pss} to nonlinear,
+network-scale recovery.
+
+% =====================================================================
+% Block 5 — Contributions
+% =====================================================================
 \paragraph{Contributions.}
-% TODO: enumerate
 \begin{itemize}
-  \item % contribution 1
-  \item % contribution 2
-  \item % contribution 3
+  \item We show that perturbed steady-state observations can support accurate recovery
+        of sparse nonlinear interaction networks without numerical differentiation,
+        and characterise how recovery depends on sample size, model nonlinearity, and
+        perturbation design.
+  \item We benchmark \pss{}-Net against MRA-style, sparse-regression, SINDy-style, and
+        association-based alternatives, identifying regimes where nonlinear
+        steady-state modelling improves support recovery and where topology or
+        measurement constraints remain limiting.
+  \item We reserve the final application layer for real microbial-community data, where
+        \pss{}-Net can be used to analyse perturbation-response experiments once
+        suitable steady-state abundance measurements are available.
 \end{itemize}

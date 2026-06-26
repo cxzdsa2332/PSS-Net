@@ -52,4 +52,4 @@ ref/v0.1.txt 已模拟 $f_{ij}=x_ix_j$ 二阶项。扩为 functional ANOVA（主
 ## 参考文献（详见 references.bib）
 meister2013pss, henderson2014network, wu2014saode, zhang2023minimax,
 xiao2017mapping, dong2023idopnetwork, chen2019omnidirectional,
-brunton2016sindy, maynard2024beyond, kurtz2015sparse.
+brunton2016sindy, ishizawa2024beyond, kurtz2015sparse.
