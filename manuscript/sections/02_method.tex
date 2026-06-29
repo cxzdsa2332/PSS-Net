@@ -9,25 +9,39 @@ more reliably than time derivatives.  The statistical object of interest is not
 the full transient trajectory, but the collection of univariate steady-state
 effects that explain how perturbations propagate through the system.
 
-\subsection{A sparse additive steady-state model}
+\subsection{A sparse steady-state-compatible network model}
 \label{sec:method:model}
 
 Let $\xv(t)=(x_1(t),\ldots,x_p(t))^\top\in\R_+^p$ denote the state of $p$
-interacting variables.  We use the additive ODE
+interacting variables.  We model perturbed network dynamics through
 \begin{equation}
   \frac{d x_j(t)}{dt}
   =
+  q_j\{x_j(t)\}
+  \left[
   \mu_j
   + f_{jj}\{x_j(t)\}
   + \sum_{i\neq j} f_{ji}\{x_i(t)\}
-  + u_j(t),
+  + u_j(t)
+  \right],
   \qquad j=1,\ldots,p,
   \label{eq:ode}
 \end{equation}
-as the working model for perturbed steady states.  Here $\mu_j$ is a baseline
-drift term, $u_j(t)$ is an externally controlled perturbation, $f_{jj}$ is the
-self-feedback function for node $j$, and $f_{ji}$ for $i\neq j$ is the effect of
-source node $i$ on target node $j$.
+as a steady-state-compatible working model.  Here $q_j(a)>0$ on the analysed
+state range is a target-specific activity or turnover factor, $\mu_j$ is a
+baseline drift term, $u_j(t)$ is an externally controlled perturbation, $f_{jj}$
+is the self-feedback function for node $j$, and $f_{ji}$ for $i\neq j$ is the
+effect of source node $i$ on target node $j$.
+
+The form in \eqref{eq:ode} is a separable member of the broad network-dynamics
+classes used to study steady-state perturbation response and resilience in
+complex systems \citep{barzel2013universality,gao2016universal}.  The special
+case $q_j\equiv 1$ gives an additive ODE.  The generalized Lotka--Volterra
+(gLV) model corresponds to $q_j(x_j)=x_j$ with linear cross-effects and linear
+self-damping, and is widely used in ecological and microbiome dynamics
+\citep{stein2013ecological,venturelli2018deciphering}.  PSS-Net does not
+estimate $q_j$; it estimates the additive bracket whose zero defines the
+perturbed steady-state relation.
 
 The directed network is defined by nonzero cross-node effects,
 \begin{equation}
@@ -37,7 +51,8 @@ The directed network is defined by nonzero cross-node effects,
 Self-feedback functions are estimated because they affect equilibrium and local
 stability, but they are not counted as directed network edges.
 
-The decomposition in \eqref{eq:ode} has the usual additive identifiability issue:
+The decomposition inside the bracket in \eqref{eq:ode} has the usual additive
+identifiability issue:
 a constant can be moved between $\mu_j$ and any $f_{ji}$.  We impose the
 normalization
 \begin{equation}
@@ -59,8 +74,9 @@ is allowed to reach a stable equilibrium $\xv^{(k)*}$, and we observe
   \qquad k=1,\ldots,N,
   \label{eq:obs}
 \end{equation}
-where $\bm{\eta}^{(k)}$ represents measurement noise.  At equilibrium,
-\eqref{eq:ode} implies the algebraic constraint
+where $\bm{\eta}^{(k)}$ represents measurement noise.  At an equilibrium with
+positive activity factor $q_j\{x_j^{(k)*}\}$, \eqref{eq:ode} implies the
+algebraic constraint
 \begin{equation}
   \mu_j
   + f_{jj}\{x_j^{(k)*}\}
@@ -76,10 +92,20 @@ This is the key statistical reduction: estimation can proceed by regression
 without numerical differentiation of noisy trajectories
 \citep{meister2013pss,henderson2014network,wu2014saode}.
 
+For a multiplicative generalized Lotka--Volterra system
+$\dot x_j = x_j\{r_j+\sum_{i\neq j}A_{ji}x_i-\gamma_j x_j+u_j\}$, positive
+equilibrium similarly forces the bracket to vanish, which is exactly
+\eqref{eq:ss} with the linear effects $f_{ji}(x_i)=A_{ji}x_i$, self-feedback
+$f_{jj}(x_j)=-\gamma_j x_j$, and $\mu_j=r_j$.  PSS-Net therefore recovers the
+interaction signs and supports encoded in the steady-state equation even when
+the transient vector field contains an unestimated multiplicative prefactor.
+
 \subsection{Basis expansion}
 \label{sec:method:basis}
 
-We approximate each unknown univariate effect by a finite dictionary
+Following the dictionary-of-functions view of data-driven dynamics
+\citep{brunton2016sindy,kaptanoglu2022pysindy}, we approximate each unknown
+univariate effect by a finite dictionary
 $\psiv(a)=(\psi_1(a),\ldots,\psi_M(a))^\top$,
 \begin{equation}
   f_{ji}(a)
@@ -91,12 +117,13 @@ $\psiv(a)=(\psi_1(a),\ldots,\psi_M(a))^\top$,
   \thetav_{ji}\in\R^M.
   \label{eq:basis}
 \end{equation}
-The implementation uses the no-intercept monomial dictionary
-$\psi_m(a)=a^m$, $m=1,\ldots,M$, which automatically satisfies
-\eqref{eq:zero}.  Other no-intercept dictionaries can be substituted, but the
-monomial dictionary has a useful interpretability property: a linear effect is
-represented by a single nonzero coefficient, rather than being spread across
-several basis functions.
+The estimator only requires a no-intercept dictionary, so that
+$\psi_m(0)=0$ and the fitted effects obey the normalization in
+\eqref{eq:zero}.  The default implementation uses the monomial dictionary
+$\psi_m(a)=a^m$, $m=1,\ldots,M$, because it keeps linear and higher-order
+contributions separated in the coefficient vector.  Other no-intercept
+dictionaries, such as saturating or Fourier-type libraries, can be substituted
+without changing the grouped regression structure.
 
 For target $j$, define the stacked coefficient vector
 \[
@@ -125,7 +152,7 @@ linear working model
 where $\uv_{\cdot j}=(u_j^{(1)},\ldots,u_j^{(N)})^\top$ and
 $\bm{\varepsilon}_j$ collects measurement noise and basis truncation error.
 
-\subsection{Centering, scaling, and intercept recovery}
+\subsection{Centering, scaling, and optional intercept recovery}
 \label{sec:method:preprocess}
 
 Because the basis columns generally have nonzero empirical means, the intercept
@@ -156,7 +183,9 @@ scaled design, the original-scale estimate is
   \hat{\thetav}_j = S^{-1}\hat{\thetav}_j^{(s)}.
   \label{eq:unscale}
 \end{equation}
-The baseline term is then recovered from the uncentered estimating equation:
+When the full steady-state bracket rather than only the edge set or local
+effects is needed, the baseline term can be recovered from the uncentered
+estimating equation:
 \begin{equation}
   \hat\mu_j = -\bar u_j - \bar{\Psib}\hat{\thetav}_j.
   \label{eq:intercept}
@@ -178,8 +207,10 @@ have a simple representation in the chosen dictionary.  Formally, we use
 \end{align}
 
 Our primary estimator is adaptive double sparse iterative hard thresholding
-(\adsiht{}; \citealp{zhang2023minimax}).  For each target node $j$, it solves
-the scaled version of
+(\adsiht{}; \citealp{zhang2023minimax}), chosen to match the source-level and
+within-source sparsity in \eqref{eq:sparse-group}--\eqref{eq:sparse-within}
+\citep{cai2022sparsegroup,zhang2023minimax}.  For each target node $j$, it
+solves the scaled version of
 \begin{equation}
   \min_{\thetav_j}
   \frac{1}{2N}
@@ -188,10 +219,13 @@ the scaled version of
   \text{subject to \eqref{eq:sparse-group}--\eqref{eq:sparse-within}}.
   \label{eq:adsiht-objective}
 \end{equation}
-The grouping is defined by source node, with
-\texttt{group = rep(1:p, each = M)}.  The information criterion in \adsiht{}
-selects the effective sparsity levels adaptively, avoiding manual tuning of
-$(s,s_0)$.
+The groups are defined by source node, so that the $M$ basis coefficients of a
+given source are selected or dropped together.  The information criterion in
+\adsiht{} selects the effective sparsity levels adaptively, avoiding manual
+tuning of $(s,s_0)$.
+When explicitly comparing node-wise and joint recovery, we also use a
+multi-task version that stacks all target regressions and encourages shared
+model selection across equations \citep{dong2026multitask}.
 
 As a continuous-shrinkage comparator, we also consider the group lasso estimator
 \citep{lounici2011group},
@@ -209,20 +243,25 @@ zeros, so edge selection requires a post-estimation threshold.
 \subsection{Network reconstruction and local linear effects}
 \label{sec:method:network}
 
-The estimated edge set is obtained from the group norms of the fitted effects:
+For \adsiht{}, the native estimated support is the set of source groups selected
+by the minimum-DSIC solution.  Let $\widehat{\mathcal A}_j$ be the selected
+basis-coordinate set for target $j$, and let
+$G_i=\{(i-1)M+1,\ldots,iM\}$ denote the source-$i$ group.  The native PSS-Net
+edge set is
 \begin{equation}
   \hat E
   =
-  \{(j\leftarrow i): i\neq j,\ \norm{\hat{\thetav}_{ji}}_2\ge \tau_j\}.
+  \{(j\leftarrow i): i\neq j,\ \widehat{\mathcal A}_j\cap G_i\neq\emptyset\}.
   \label{eq:edge-estimate}
 \end{equation}
-For \adsiht{}, we use a floating-point threshold $\tau_j=10^{-10}$.  For group
-lasso, we use the relative threshold
-$\tau_j=0.01\max_{i\neq j}\norm{\hat{\thetav}_{ji}}_2$.
+Group norms, fitted Jacobian magnitudes, or normalized local-response scores can
+also be used to rank candidate edges.  Any post-estimation threshold used for a
+continuous-shrinkage comparator or for a scale-matched external benchmark is an
+analysis-specific choice and is reported with that simulation.
 
 To summarize the local direction and magnitude of effects, we evaluate the
-Jacobian of the fitted additive vector field at an unperturbed reference
-steady state $\xv^{\mathrm{ref}}$:
+Jacobian of the fitted additive steady-state bracket at an analysis-specified
+reference state $\xv^{\mathrm{ref}}$:
 \begin{equation}
   \hat J_{ji}
   =
@@ -246,35 +285,74 @@ For the monomial dictionary, this reduces to
   \label{eq:jacobian-monomial}
 \end{equation}
 A positive $\hat J_{ji}$ indicates that increasing node $i$ locally increases
-the rate of change of node $j$ near the reference state, whereas a negative
-value indicates a locally decreasing effect.
+the fitted steady-state bracket for node $j$ near the reference state, whereas a
+negative value indicates a locally decreasing effect.  When $q_j\equiv 1$, this
+is also the local vector-field Jacobian; with a positive multiplicative
+prefactor such as gLV, the off-diagonal transient Jacobian at equilibrium is
+scaled by $q_j(x_j^{\mathrm{ref}})$ and has the same sign.
 
-\subsection{Statistical interpretation}
-\label{sec:method:theory}
+\subsection{The PSS-Net algorithm}
+\label{sec:method:algorithm}
 
-For a fixed target node, the centered steady-state regression
-\eqref{eq:centered-linear} is a high-dimensional grouped linear model with
-structured sparsity.  Existing minimax theory for double-sparse regression
-\citep{cai2022sparsegroup,zhang2023minimax} implies that, under suitable sparse
-eigenvalue or restricted isometry conditions on $\Psic$, the squared estimation
-error scales as
-\begin{equation}
-  \norm{\hat{\thetav}_j-\thetav_j^*}_2^2
-  =
-  O_{\mathbb{P}}\!\left[
-  \frac{\sigma^2}{N}
-  \left\{
-  s\log\frac{p}{s}
-  +
-  ss_0\log\frac{eM}{s_0}
-  \right\}
-  \right].
-  \label{eq:rate}
-\end{equation}
-The first term is the cost of locating the active source nodes, and the second
-is the cost of selecting and estimating the active basis coefficients within
-those nodes.  If the minimum active group norm is larger than the stochastic
-estimation error, the same framework yields support recovery for the directed
-edge set.  In the perturbed steady-state setting, these design conditions are
-controlled by the choice of perturbations through the induced equilibrium
-states; this motivates the perturbation-design experiments reported separately.
+Algorithm~\ref{alg:pssnet} collects the preceding steps.  Because the design
+matrix $\Psib$ is shared across all target nodes---only the response
+$\uv_{\cdot j}$ changes with $j$---the $p$ regressions can be written as a single
+global double-sparse problem with the Kronecker design $\Xb=\Ib_p\otimes\Psic^{(s)}$
+and stacked response $\yv=-\operatorname{vec}(\Uc)$, where
+$\Uc\in\R^{N\times p}$ collects the centered perturbations.  The block-diagonal
+grouping then has one group per $(\text{target},\text{source})$ pair.  Because
+the least-squares loss is separable across targets, the node-wise loop is the
+memory-efficient default and is exactly equivalent when each target is selected
+independently.  The block-diagonal form differs only when a single selection
+criterion is applied across all blocks: pooling the model-complexity decisions
+couples information across tasks and empirically improves recovery on
+heterogeneous, scale-free networks, where a few hub targets carry high in-degree
+while most carry little.  This benefit comes at substantially higher memory
+cost---the dense Kronecker design scales with $p^2$---so the joint form is
+preferred for hub-dominated structure with small $N$ and the node-wise loop
+elsewhere.
+
+\begin{algorithm}[t]
+\caption{PSS-Net: directed network inference from perturbed steady states}
+\label{alg:pssnet}
+\begin{algorithmic}[1]
+\Require Steady-state observations $\{\tilde{\xv}^{(k)}\}_{k=1}^N$, perturbations
+  $\{\uv^{(k)}\}_{k=1}^N$, no-intercept dictionary $\psiv$ of size $M$,
+  reference state $\xv^{\mathrm{ref}}$
+\Ensure Directed edge set $\hat E$, local bracket Jacobian $\hat{\Jac}$
+\State Build design matrix $\Psib$ with
+  $\Psib_{k,(i-1)M+m}=\psi_m(\tilde x_i^{(k)})$ \Comment{Eq.~\eqref{eq:design}}
+\State Center and column-scale:
+  $\Psic=\Psib-\mathbf 1_N\bar\Psib$, $\;\Psic^{(s)}=\Psic S^{-1}$
+  \Comment{Eqs.~\eqref{eq:center}--\eqref{eq:unscale}}
+\State Form $\Xb=\Ib_p\otimes\Psic^{(s)}$ and $\yv=-\operatorname{vec}(\Uc)$
+\State $\hat\thetav^{(s)}\gets\adsiht{}\big(\Xb,\yv;\,
+  \texttt{group}=\mathrm{rep}(1{:}p^2,\ \text{each}{=}M)\big)$
+  \Comment{double-sparse, IC-tuned \eqref{eq:adsiht-objective}}
+\State Unscale and reshape to $\{\hat\thetav_{ji}\}_{i,j=1}^p$; recover
+  $\hat\mu_j$ if the full bracket is needed \Comment{Eq.~\eqref{eq:intercept}}
+\State Edge set $\hat E$ from the selected source groups \Comment{Eq.~\eqref{eq:edge-estimate}}
+\State Bracket Jacobian
+  $\hat J_{ji}=\psiv'(x_i^{\mathrm{ref}})^\top\hat\thetav_{ji}$
+  \Comment{Eq.~\eqref{eq:jacobian}}
+\State \Return $\hat E,\ \hat{\Jac}$
+\end{algorithmic}
+\end{algorithm}
+
+\subsection{Application datasets}
+\label{sec:method:data}
+
+We apply PSS-Net to synthetic human gut microbiome communities, which match the
+perturbed steady-state design: defined species combinations are assembled,
+cultured to a community endpoint, and the resulting abundances are read out.
+The primary dataset is the 26-species assembly of \citet{clark2021design}
+($N=1850$ species combinations measured by 16S amplicon sequencing), with the
+12-species, OD600-calibrated communities of \citet{venturelli2018deciphering} as
+a smaller, near-absolute-abundance secondary set.  Species presence/absence (or
+inoculation level) plays the role of the perturbation $\uv$ and the endpoint
+abundances play the role of the steady state $\tilde{\xv}$.  Because 16S
+measurements are compositional, abundances are normalized by a centered
+log-ratio or reference-species transform before inference, except where an
+external total-abundance measurement (OD600) permits an absolute-scale analysis;
+the impact of this choice is quantified in the compositional simulation
+(Section~\ref{sec:sim:benchmark}).

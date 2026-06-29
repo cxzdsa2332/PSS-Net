@@ -1,77 +1,99 @@
 \section{Simulation Studies}
 \label{sec:simulation}
 
-\subsection{Experimental setup}
-\label{sec:sim:setup}
-We evaluate PSS-Net on controlled nonlinear systems where the true directed
-network is known.  The simulations are intended to probe two questions: whether
-the perturbed steady-state regression recovers the support of sparse cross-node
-effects, and whether the double-sparse estimator improves over a group-sparse
-continuous-shrinkage baseline.
+We evaluate PSS-Net around three questions: whether perturbed steady states
+carry enough information to recover the directed sparse network and its
+univariate edge functions; how recovery scales with sample budget and
+perturbation design; and how PSS-Net compares with external
+network-reconstruction baselines across topologies and measurement scales.
 
-The primary additive benchmark follows the working model in
-\Cref{sec:method:model}, with low-order polynomial effects and sparse directed
-coupling.  In addition, we include a multiplicative generalized
-Lotka--Volterra (gLV) benchmark as an example of a nonlinear system whose
-positive steady states reduce to an additive linear equilibrium equation.  For
-this benchmark,
+\subsection{Setup}
+\label{sec:sim:setup}
+
+All experiments generate the full dynamical system but pass only the
+post-perturbation equilibrium pairs $(\tilde{\xv}^{(k)},\uv^{(k)})$ to inference.
+The main benchmark is the additive polynomial system
 \begin{equation}
   \frac{dx_j}{dt}
   =
-  x_j
-  \left(
-  r_j + \sum_{i\neq j} A_{ji}x_i - \gamma_j x_j + u_j
-  \right),
-  \qquad j=1,\ldots,p,
-  \label{eq:sim-glv}
+  \mu_j - \gamma_j x_j
+  + \sum_{i\neq j}\{A_{ji}x_i + B_{ji}x_i^2\}
+  + u_j,
+  \label{eq:sim-additive}
 \end{equation}
-where $A_{ji}$ denotes cross-node coupling and $\gamma_j>0$ denotes
-self-damping.  At any positive steady state, division by $x_j^*$ gives
-\[
-  r_j + \sum_{i\neq j} A_{ji}x_i^* - \gamma_j x_j^* + u_j = 0,
-\]
-so the same steady-state regression used by PSS-Net is correctly specified even
-though the transient gLV dynamics are not additive.
+whose off-diagonal support defines the true directed network; $\gamma_j$ is set
+large enough for diagonally stable, positive steady states, and quadratic terms
+$B_{ji}$ are activated on a subset of edges in the nonlinear variants.  To
+separate transient-model from steady-state-model specification we also use a
+multiplicative generalized Lotka--Volterra (gLV) system
+$\dot x_j = x_j(r_j + \sum_{i\neq j} A_{ji}x_i - \gamma_j x_j + u_j)$, whose
+positive equilibrium reduces to the same additive linear steady-state equation
+(\Cref{sec:method:pss}), so PSS-Net is correctly specified for the equilibrium
+relation despite the multiplicative transient.
 
-For each simulated system, we generate $N$ perturbation conditions, integrate the
-ODE to equilibrium, add measurement noise, and fit each target node separately.
-The first perturbation is the unperturbed reference condition used for local
-Jacobian evaluation.  Unless otherwise stated, the basis dictionary is the
-no-intercept monomial basis used in \Cref{sec:method:basis}.  Network recovery is
-summarized by TP/FP/FN/TN, precision, recall, $F_1$, and MCC.  Parameter recovery
-is summarized by coefficient $\ell_2$ error and non-self Jacobian RMSE.  Results
-are averaged over repeated random seeds and reported as mean $\pm$ standard
-deviation.
+Unless stated otherwise, PSS-Net uses the node-wise \adsiht{} estimator
+(\Cref{sec:method:adsiht}) with the no-intercept monomial library through second
+order, i.e.\ source-node groups $\{x_i,x_i^2\}$.  Support recovery is summarized
+by precision, recall, $F_1$, and Matthews correlation coefficient (MCC) on
+off-diagonal directed edges, threshold-free ranking by AUPRC and AUROC, and
+effect-strength recovery by coefficient/Jacobian error, sign accuracy, and
+edge-function NRMSE.  All results are averaged over 30 random seeds and shown as
+seed-level points with mean $\pm$ standard deviation.
 
-\subsection{Method comparison: \adsiht{} vs.\ Group Lasso}
-\label{sec:sim:compare}
-% TODO: summarize results/mcc_comparison.csv.
-\begin{table}[t]
-  \centering
-  \caption{Network recovery on the linear gLV benchmark (8 nodes, 10 seeds).
-           Results from \texttt{results/mcc\_comparison.csv}.}
-  \label{tab:mcc}
-  \begin{tabular}{llccc}
-    \toprule
-    Setting & Method & Precision & Recall & MCC \\
-    \midrule
-    no-smooth   & \adsiht{}  & TODO & TODO & TODO \\
-    no-smooth   & grLasso    & TODO & TODO & TODO \\
-    pre-smooth  & \adsiht{}  & TODO & TODO & TODO \\
-    pre-smooth  & grLasso    & TODO & TODO & TODO \\
-    \bottomrule
-  \end{tabular}
-\end{table}
+\subsection{Foundation recovery}
+\label{sec:sim:foundation}
 
-\subsection{Effect of pre-smoothing}
-\label{sec:sim:smoothing}
-% TODO: document the finding that B-spline pre-smoothing degrades MCC
-% in multivariate systems.
+The first group establishes what the estimator extracts from the data. We
+visualize that only the final steady state---not the differentiated
+trajectory---enters the regression, map the identifiability boundary at which
+quadratic effects become detectable as a function of signal-to-noise ratio, and
+compare \adsiht{} with group lasso under linear and nonlinear truth across
+problem sizes. A fitted nonlinear system is then decomposed into baseline,
+self-feedback, and received cross-node effects to confirm that selected edges
+also reconstruct the correct function shape and sign, not merely an edge score.
+A final library-misspecification experiment varies true (quadratic, saturating
+Monod-type, sinusoidal) against fitted (linear, polynomial, Monod-type,
+Fourier-type) dictionaries, separating support MCC---robust to moderate
+misspecification---from edge-function NRMSE, which depends on whether the fitted
+dictionary can represent the true shape.
 
-\subsection{Sensitivity to $(p, N, s, \sigma)$ and basis choice}
-\label{sec:sim:sensitivity}
-% TODO: phase diagrams of MCC vs N/p and noise; monomial vs B-spline vs Legendre.
-% \begin{figure}[t]\centering
-%   \includegraphics[width=.7\linewidth]{figures/phase_mcc.pdf}
-%   \caption{TODO}\label{fig:phase}
-% \end{figure}
+\subsection{Scaling and perturbation design}
+\label{sec:sim:design}
+
+The second group studies how the same estimator behaves as the number and
+placement of perturbations change. Sample complexity is organized by the
+rescaled budget $N/(s\log p)$ across a range of network sizes and sparsity
+levels. Perturbation designs then compare random, maximin, and D-optimal
+strategies, the last mapping candidate perturbations through the (known or
+locally linearized) steady-state response and selecting an exact subset with
+\texttt{AlgDesign::optFederov()}
+\citep{wheeler2025algdesign,fedorov1972theory}; the D-optimal backend is a
+standard experimental-design tool, not a new inference algorithm. A two-stage
+variant replaces the known response map with one estimated from a shared pilot,
+comparing pilot-estimated D-optimal continuations against random, maximin, and
+oracle D-optimal. The intended reading is regime-dependent: designed inputs help
+most in nonlinear, low-budget settings, while at high budgets random
+perturbations approach the same performance.
+
+\subsection{External benchmarks, topology, and measurement limits}
+\label{sec:sim:benchmark}
+
+The third group places PSS-Net in a broader comparison. Against modular response
+analysis \citep[MRA;][]{kholodenko2002untangling} via the aiMeRA implementation
+\citep{jimenezdominguez2021aimera}, sparse linear regression (lasso and elastic
+net through \texttt{glmnet}, \citealp{friedman2010glmnet}; group lasso,
+\citealp{lounici2011group}), PySINDy-STLSQ
+\citep{brunton2016sindy,kaptanoglu2022pysindy}, and association baselines
+(Pearson correlation and partial correlation through \texttt{ppcor},
+\citealp{kim2015ppcor}), PSS-Net matches the
+best methods on linear truth and retains a margin in MCC and AUPRC under strong
+nonlinearity, while uniquely providing absolute-scale Jacobian and
+function-recovery diagnostics; row-normalized scores are used where output
+scales differ. We test topology dependence by comparing node-wise and joint
+multi-task PSS-Net on scale-free versus Erd\H{o}s--R\'enyi graphs, reporting edge
+MCC, out-degree rank correlation, and hub hit rate, to assess whether pooling
+target equations helps recover hub-dominated structure. Finally, a compositional
+experiment contrasts absolute abundance (an oracle upper bound) with closed
+relative abundance, centered log-ratio, and noisy-total-corrected scales, to
+quantify the loss from closure and whether an external biomass measurement
+suffices to recover the absolute-scale steady-state equation.

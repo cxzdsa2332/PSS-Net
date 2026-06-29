@@ -662,24 +662,40 @@ threshold_audit <- identical(Sys.getenv("FIG3B_THRESHOLD_AUDIT"), "1")
 if (threshold_audit) nodewise_methods <- nodewise_methods["PSS_Net"]
 
 rows <- list()
-for (seed in seq_len(R)) {
-  sys0 <- make_system(p, s_in, seed = 3300 + seed)
+cell_keys <- as.vector(outer(truth_grid, N_grid, paste, sep = "|"))
+cell_counts <- setNames(integer(length(cell_keys)), cell_keys)
+max_attempts <- max(20L * R, R + 100L)
+attempt <- 0L
+while (any(cell_counts < R)) {
+  attempt <- attempt + 1L
+  if (attempt > max_attempts) {
+    stop("Unable to collect ", R, " valid replicates for every Fig3b cell after ",
+         max_attempts, " simulation seeds.")
+  }
+  sys0 <- make_system(p, s_in, seed = 3300 + attempt)
   for (truth in truth_grid) {
     sys <- sys_for(sys0, truth)
     for (N in N_grid) {
-      set.seed(7000 + 10 * seed + N)
+      cell_key <- paste(truth, N, sep = "|")
+      if (cell_counts[[cell_key]] >= R) next
+      set.seed(7000 + 10 * attempt + N)
       # Wide perturbation amplitude so the steady state explores the nonlinear
       # regime (small u keeps the system near-linear and hides curvature).
       U <- matrix(runif(N * p, u_lo, u_hi), N, p)
       U[1, ] <- 0
       X <- steady_for(sys, U, truth)
       ok <- apply(X, 1, function(z) all(is.finite(z)) && all(z > 0))
-      if (sum(ok) < p + 2L) next
+      if (sum(ok) < p + 2L) {
+        cat(sprintf("sim_seed=%d truth=%-16s N=%3d skipped (n_eff=%d)\n",
+                    attempt, truth, N, sum(ok)))
+        next
+      }
+      rep_id <- cell_counts[[cell_key]] + 1L
       U <- U[ok, , drop = FALSE]
       X <- X[ok, , drop = FALSE]
       signal_scale <- mean(apply(X, 2, sd))
       sigma_x <- signal_scale / snr_level
-      set.seed(7700 + 100 * seed + N)
+      set.seed(7700 + 100 * attempt + N)
       X_obs <- pmax(X + matrix(rnorm(length(X), sd = sigma_x), nrow(X), p), 1e-6)
 
       Uc <- sweep(U, 2, colMeans(U))
@@ -741,7 +757,7 @@ for (seed in seq_len(R)) {
         jac_scale <- if (is.null(results[[m]]$jac)) "not_applicable" else
           if (is.null(results[[m]]$jac_scale)) "absolute" else results[[m]]$jac_scale
         rows[[length(rows) + 1L]] <- data.frame(
-          seed = seed, p = p, s_in = s_in, M_ord = M_ord,
+          seed = rep_id, sim_seed = attempt, p = p, s_in = s_in, M_ord = M_ord,
           N = N, n_eff = nrow(X),
           N_over_slogp = N / base, truth = truth, snr = snr_level,
           method = m, JacScale = jac_scale,
@@ -750,7 +766,9 @@ for (seed in seq_len(R)) {
           t(mets), stringsAsFactors = FALSE
         )
       }
-      cat(sprintf("seed=%d truth=%-9s N=%3d done\n", seed, truth, N))
+      cell_counts[[cell_key]] <- rep_id
+      cat(sprintf("rep=%d sim_seed=%d truth=%-16s N=%3d done\n",
+                  rep_id, attempt, truth, N))
     }
   }
 }

@@ -1,0 +1,121 @@
+Appendix for 
+Deciphering microbial interactions in synthetic human gut microbiome communities  
+Ophelia S. Venturelli*1, Alex V. Carr+5, Garth Fisher+5, Ryan H. Hsu2, Rebecca Lau5, Benjamin P. 
+Bowen5, Susan Hromada1, Trent Northen5 & Adam P. Arkin2345  
+1Department of Biochemistry, University of Wisconsin-Madison, Madison, WI 
+2California Institute for Quantitative Biosciences, University of California Berkeley, Berkeley CA  
+3Department of Bioengineering, University of California Berkeley, Berkeley CA  
+4Energy Biosciences Institute, University of California Berkeley, Berkeley CA 
+5Environmental Genomics and Systems Biology, Lawrence Berkeley National Laboratory, Berkeley 
+CA  
+Table of Contents 
+Appendix Figure S1_________2 
+Appendix Figure S2_________3 
+Appendix Figure S3_________4 
+Appendix Figure S4_________5 
+Appendix Figure S5_________5 
+Appendix Figure S6_________6 
+Appendix Figure S7_________7 
+Appendix Figure S8_________8 
+Appendix Figure S9_________8 
+Appendix Figure S10_________9 
+Appendix Figure S11_________10 
+Appendix Figure S12_________10 
+Appendix Figure S13_________11 
+Appendix Figure S14_________12 
+Appendix Figure S15_________12 
+Appendix Figure S16_________13 
+Appendix Figure S17_________14 
+Appendix Figure S18_________14 
+Appendix Figure S19_________15 
+Appendix Figure S20_________15 
+Appendix Figure S21_________16 
+Appendix Figure S22_________17 
+Appendix Figure S23_________18 
+Appendix Figure S24_________19 
+Appendix Figure S25_________20 
+Appendix Figure S26_________20 
+Appendix Figure S27_________20 
+Appendix Figure S28_________20 
+References_________21 
+	 2	
+  Appendix Figure S1 Relative abundance and total biomass (OD600) measurements as a function of time of all pairwise assemblages inoculated at approximately equal initial species proportions based on OD600 values. Each subplot shows relative abundance (left) and OD600 (right) of the community as a function of time. Error bars represent 1 s.d. from the mean of at least three biological replicates. Species include: Collinsella aerofaciens (CA), Bacteroides uniformis (BU), Prevotella copri (PC), Bacteroides ovatus (BO), Bacteroides vulgatus (BV), Bacteroides thetaiotaomicron (BT), Eggerthella lenta (EL), Faecalibacterium prausnitzii (FP), Clostridium hiranonis (CH), Desulfovibrio piger (DP), Eubacterium rectale (ER) and Blautia hydrogenotrophica (BH).    
+
+	 3	
+   
+ Appendix Figure S2 Growth responses of monospecies as a function of time. Each subplot shows absorbance at 600 nm (OD600) as a function of time for single species. Red circles denote data points. Lines represent gLV model fits trained on T1-T4. Error bars denote 1 s.d. from the mean of three biological replicates.   
+
+	 4	
+ Appendix Figure S3 Absolute species abundance distributions based on OD600 and relative abundance of each species across all pairwise assemblages in PW1. (a) Each subplot shows the absolute abundance (OD600comm) divided by the monospecies OD600 value at 23.5 hr (Kmono). The y-axis represents the probability density function. Blue and black lines represent Gaussian mixture model fits to the data and x = 1, respectively. (b) Coefficient of variation of absolute abundance distributions divided by the monospecies OD600 value at 23.5 hr (OD600comm Kmono-1).    
+
+	 5	
+ 
+ Appendix Figure S4 Time-series measurements of relative and absolute abundance based on OD600 measurements of 15 pairwise communities inoculated using two different initial species proportions: 95% species A, 5% species B and the reciprocal based on OD600 values. Each subplot shows time (x-axis) vs. fraction of the community (left y-axis) and OD600 (right y-axis). Error bars denote 1 s.d. from the mean of at least three biological replicates.  
+ Appendix Figure S5 Classification of community behaviors based on consortia inoculated using two distinct initial species proportions. (a) Relative abundance of pairwise assemblages inoculated from two distinct initial species proportions based on OD600 measurements: 95% species A, 5% species B and a second wherein these percentages were reversed. Community composition was measured immediately following inoculation (t = 0) 
+
+	 6	
+and following 72 hr using the serial dilution experimental design. (b) Heat-map of pairwise community behaviors classified into coexistence, dominance, history-dependence or other categories. History-dependence required at least 40% variation in relative abundance at 72 hr for each organism based on two conditions inoculated using distinct initial species proportions. Dominance occurred when one organism was at least 95% of the community at 72 hr and the community did not exhibit a history-dependent response. Coexistence required that both species were at least 5% of the community at 72 hr and the consortium did not exhibit a history-dependent response. Communities in the other category did not quantitatively satisfy the criteria for history-dependence, dominance or coexistence. The text in each box represents the signs of the inferred inter-species interactions for the model trained on T3.    
+ Appendix Figure S6 Relationship between the regularization coefficient (𝜆), sum of errors (total error) for all experiments in the T3 training set (left y-axis) and number of parameters with an absolute value greater than 0.01 (right y-axis). The total error was computed as the sum of mean squared errors for each organism in each community (see Materials & Methods). A high-resolution scan of 𝜆 yielded an optimal value corresponding to 𝜆 = 0.0077 (dashed line).  
+
+	 7	
+ Appendix Figure S7 Analysis of the inferred gLV inter-species interaction coefficient network based on training set T3. (a) Bar plot of the number of positive and negative incoming and outgoing edges for each organism for the inferred network based on the T3 training set. (b) Bar plot of the total number of qualitatively distinct network topologies in the inferred gLV model trained on T3. (c) Normalized absolute abundance of FP to the maximum value across parameter sets at 72 hr in a 6-member gLV model composed of FP and positive modulators of FP: BH, BU, BV, CH and DP. A ‘+’ or ‘-‘ indicates that the incoming inter-species interaction coefficient for FP 𝛼#$,& was set to the inferred value based on training set T3 or zero, respectively. Here X represents BH, BU, BV, CH, and DP, respectively.   
+
+	 8	
+ Appendix Figure S8.  Scatter plot of predicted vs. measured productivity for all pairwise communities. Productivity is defined as the integral of the growth response based on OD600 as a function of time. Predicted productivity is a null model of the sum of integrals of monospecies growth responses based on OD600 as a function of time. Measured productivity is computed as the integral of the pairwise community growth response over a 23.5 hr period. The solid and dashed lines represent the x = y line and two-fold significance threshold, respectively. Error bars represent 1 s.d. from the mean of at least three biological replicates.   
+  Appendix Figure S9 Analysis of the patterns in the inferred inter-species interaction coefficients for the gLV model trained on T3 based on phylogenetic relatedness. (a) Hierarchical clustering of inferred inter-species interaction coefficients for the model trained on T3. Recipient and donor species are on the x and y-axis, respectively. The color of the heat-map represents the value of the gLV interaction coefficient. (b) Heat-map of inter-species interaction coefficients sorted by phylogenetic relatedness for the gLV model trained on T3. Recipient and donor species are on the x and y-axes, respectively.   
+
+	 9	
+ Appendix Figure S10 Growth responses of multi-species communities as a function of time. (a) Total biomass was quantified using absorbance at 600 nm (OD600) for the full (12-member) and single-species communities (11-member). Each subplot represents a single species dropout or the full community. Text above each subplot indicates the organism absent from the community. Shaded regions denote 1 s.d. from the mean of six biological replicates. (b) Normalized integral of each time-resolved growth response for each multi-species community. Growth stages G1-G3 represent the growth response of the community following inoculation and after the first and second serial transfers (1:20 dilution), respectively. Error bars represent 1 s.d. from the mean of six biological replicates.    
+
+	 10	
+  
+ Appendix Figure S11 Scatter plot of the median relative abundance across 124 adults based on metagenomics sequencing(Qin et al, 2010) vs. the mean relative abundance of each species in the full synthetic community at 72 hr. Error bars represent 1 s.d. from the mean of six biological replicates. r and P denote the Pearson correlation coefficient and p-value, respectively.  
+ Appendix Figure S12 Evaluating the contribution of each organism to community assembly based on time-series measurements of community structure of multi-species consortia. (a) Average Pearson correlation coefficient between a renormalized full community containing only the set of shared species and the single-species dropout consortium for all time points. 𝑣(	denotes the renormalized relative abundance of the shared species between the full (12-member) and single-species dropout communities. Here 𝑣(*=	,-∑,--	∈0 where C denotes the set of 11 shared organisms between the full and single-species dropout community. Data points represent biological replicates (circles) and mean of six biological replicates (blue squares), respectively. (b) Scatter plot of community diversity scored by the Shannon equitability index. Predicted Shannon diversity represents the renormalized full community consisting of the shared set of species with the single-species dropout consortium. Measured Shannon diversity denotes the Shannon equitability index for the single-species dropout communities EL-, BU-, BO- or CH-. Community diversity was computed using the Shannon equitability index: 𝐸2=	∑3-	453-6-78459 where S and pi denote the total number of species and relative abundance of each organism, 
+
+	 11	
+respectively. The size of the data point is proportional to the time point of sample measurement. Error bars represent 1 s.d. from the mean of six biological replicates.    
+ Appendix Figure S13 Scatter plot of the species impact score vs. the difference in community assembly for single-species dropout consortia. The species impact score is defined as ∑:𝛼*;:<=;><,*	?;+𝐴B>C= where 𝛼*; represents the inferred inter-species interaction coefficients for the gLV model trained on T3 and 𝐴B>C= denotes the relative abundance of each species in the full community at 72 hr. Difference in community assembly was computed as ∑<C∑(𝑣(;*,#EFF−𝑣;*,&)C;>< =<<*><,  where i and j represent species and time points, respectively. X represents a single-organism dropout community lacking the single organism X. 𝑣( represents the renormalized relative abundance of the shared set of species in the full (12-member) and single-species dropout communities. Here 𝑣(*=	,-∑,--	∈0 where C denotes the set of 11 shared organisms in the full and single-species dropout community. r and P denote the Pearson correlation coefficient and p-value, respectively. Error bars represent 1 s.d. from the mean of six biological replicates.   
+
+	 12	
+ 
+ Appendix Figure S14 (a) Scatter plot of the predicted steady-state monospecies abundance using the gLV model trained on T3 vs. the relative abundance of each species in the full community at 72 hr. The predicted steady-state monospecies concentration was computed as 𝑥J=	−𝜇*	𝛼** where 𝜇* and 𝛼** represent the growth rate and intra-species interaction coefficient, respectively. Error bars represent 1 s.d. from the mean of six biological replicates. r and P denote the Pearson correlation coefficient and p-value, respectively. (b) Heat-map of Pearson correlation coefficients across time (x-axis) and multi-species communities (y-axis). Circles (black) denote conditions that were not statistically significant. Pearson correlations were statistically significant (P < 0.05) except for the EL- at 36 hr (P = 0.062), BU- at 61 hr (P = 0.47) and BO- at 24.3 hr (P = 0.051).   
+ Appendix Figure S15 The model trained on T4 exhibited the highest predictive accuracy of temporal changes in multi-species community structures. (a) Metrics to evaluate the predictive accuracy of the models include the Pearson correlation coefficient (top) and sum of mean squared errors across all species in each community (bottom, see Materials & Methods). The x-axis represents model training sets. The validation data set for T1-T3 included 12 single-species dropouts (11-member communities) and the full community (12-member) and T4 was validated on the set of 11-member consortia. On each box, the red line represents the median, the edges of the box are the 25th and 75th percentiles, the whiskers extend to the most extreme data points and the outliers are plotted as red crosses. (b) Scatter plot of inferred parameters for gLV models trained on T3 vs. T4. 
+
+	 13	
+Blue data points represent parameters that were significantly different in the model trained on T4 compared to T3. (c) Network diagram of inter-species interaction coefficients that were significantly different in models trained on T4 compared to T3. Edges represent interaction coefficients that were present in T4 and absent in T3 (solid lines) or absent in T4 and present in T3 (dashed lines). Red and pink lines denote negative interactions and dark and light green represent positive interactions. Node size and line width are proportional to the steady-state abundance of monospecies and magnitude of inter-species interaction coefficients, respectively.    
+ Appendix Figure S16 Model analysis of pairwise community history-dependent responses across a broad range of simulated serial dilution rates. History-dependent responses were evaluated based on the Euclidean distance of species concentrations from an equilibrium point for the maximum number of serial dilutions within the time period. Each panel shows the Euclidean distance from the equilibrium point normalized to the maximum value in the absence (αij, αji = 0, left) and presence (right) of inferred inter-species interactions for the gLV model trained on 
+
+	 14	
+T3. The x and y-axes represent time periods and dilution rates, respectively. Pairwise communities include (a) BO, BT; (b) DP, PC; (c) CA, PC; (d) BO, BV; (e) BO, BU; (f) BU, BT; (g) FP, CA and (h) FP, EL. Monostable communities include BO, BT; DP, PC; CA, PC; BO, BV; BO, BU, FP, CA; FP, EL and BU, BT exhibited bistability.  
+ Appendix Figure S17 Bifurcation diagrams for a pairwise community coupled by bidirectional negative inter-species interactions. (a) Bifurcation diagram showing parameter regimes for coexistence, bistability and single-species dominance across a range of inter-species interaction coefficient values (αij). Parameters included μ1 = 0.1, μ2 = 0.1, α11 = -1 and α22 = -1. (b) Bifurcation diagram of steady-state behaviors as a function of growth rate parameters (μi). Parameters included α11 = -1, α22 = -1, α21 = -0.5 and α12 = -0.5.  
+ Appendix Figure S18.  Fraction of parameter space that exhibits species coexistence across a broad range of growth rates in the model. Networks included all inferred (a) coupled positive/negative or (b) bidirectional negative topologies for the gLV model trained on T3. Coexistence was determined by computing the analytical steady-state solution of 
+
+	 15	
+the pairwise gLV model for each parameter set. Growth rate parameters ranged from 0.05 to 1 hr-1 and 2500 combinations of growth rate parameters within this range were evaluated.  
+ Appendix Figure S19 Order-level interaction network for the gLV model trained on T3. Cl, D, B and Co denote Clostridiales (FP, BH, ER and CH), Desulfovibrionales (DP), Bacteroidales (PC, BV, BU, BT and BO) and Coriobacteriaceae (CA and EL), respectively. Green and red edges represent averaged positive and negative inter-species interaction coefficients across all species associated with the given order and line width represents the magnitude of the averaged interaction. Node size denotes the number of species in each order in the synthetic community.    
+ Appendix Figure S20 
+
+	 16	
+Metropolis-Hastings Markov Chain Monte Carlo (MCMC) analysis of parameter uncertainty for the gLV model trained on T3. Results were based on a single Markov chain that was run for 670000 iterations and used a burn-in period of 100000 iterations. The chain was initialized from the inferred parameter set based on T3. (a) Histogram of the coefficient of variation (CV) of the parameters for 570000 iterations. (b) Box plot of the CV of inter-species interaction coefficients that were not significantly different between model training on T3 vs. T4 (145 parameters) and coefficients that were significantly different based on training on T3 vs. T4 (T3®T4). On each box, the red line represents the median, the edges of the box are the 25th and 75th percentiles, the whiskers extend to the most extreme data points that the algorithm considers not to be outliers, and the outliers are plotted as red crosses. (c) Histogram of the absolute value of the Pearson correlation (r) for all parameter pairs for 570000 iterations. (d) Representative contour plot of the covariation between αBU,BV and αBU,BO (r = 0.23). (e) Representative contour plot of a highly correlated parameter pair μBU and αBU,BU (r = 0.97). (f) Scatter plot of the absolute value of each inferred parameter for the gLV model trained on T3 vs. the median absolute value of the Pearson correlation based on Metropolis-Hastings MCMC. r and P denote the Pearson correlation coefficient and P-value, respectively.  
+ Appendix Figure S21 Qualitative comparison between the impact of conditioned media on monospecies growth and the sign of the inferred gLV interaction coefficients for the gLV model trained on T3. Recipient species (x-axis) were exposed 
+
+	 17	
+to 75% conditioned media from a source organism (y-axis). The cumulative sum of the recipient growth response over a 30 hr period was computed in the presence of conditioned media, unconditioned media and pH adjusted conditioned media wherein the pH of the conditioned media was modified to approximately equal the pH of the unconditioned media. The ratio of the cumulative sum of the growth response in conditioned media (RCM) or pH adjusted conditioned media (RCMp) to the unconditioned media was compared to the sign of the gLV interaction coefficient. The results were in agreement if the RCMp, RCM > 1 and αij > 1e-6 (positive interaction) or RCMp, RCM < 1 and αij < -1e-6 (negative interaction) or 0.9 < RCMp, RCM < 1.1 and |αij| £ 1e-6 (no interaction). Insets: representative growth responses of CH in the presence and absence of PC conditioned media (negative interaction) and EL in the presence and absence of BH conditioned media (positive interaction). Shaded regions denote 1 s.d. from the mean (solid lines) of four biological replicates.  
+ Appendix Figure S22 OD600 measurements as a function of time for monospecies cultures used for exo-metabolomic profiling. The red data point represents the OD600 value at the time of the exo-metabolomics measurement. Error bars represent 1 s.d. from the mean of three biological replicates.   
+
+	 18	
+ Appendix Figure S23 Relationships between log2 fold change in metabolite abundances, monospecies biomass yields, community structure and inferred negative interactions for the gLV model trained on T3. (a) Scatter plot of the total log2 fold change in metabolite utilization vs. monospecies biomass at the corresponding time point. Error bars represent 1 s.d. from the mean of three biological replicates. (b) Scatter plot of the total log2 fold change in 
+
+	 19	
+metabolite secretion vs. monospecies biomass at the corresponding time point. Error bars represent 1 s.d. from the mean of three biological replicates. (c) Scatter plot of the total log2 fold change in metabolite secretion vs. species relative abundance in the full community at 72 hr. Error bars represent 1 s.d. from the mean of six biological replicates. (d) Scatter plot of the total log2 fold change in metabolite secretion vs. total number of negative interactions in the inferred gLV model trained on T3. (e) Scatter plot of the total log2 fold change in metabolite secretion vs. the growth rate of monospecies in the gLV model trained on T3. Rs and P denote the Spearman rank correlation coefficient and p-value, respectively.  
+  Appendix Figure S24 Bar plots of metabolites predicted to mediate negative or positive interactions in the synthetic community based on exo-metabolomic profiling. (a) Number of species pairs predicted to co-consume metabolites leading to a potential negative interaction. Consumed metabolites decreased by at least two-fold relative to the beginning of the experiment. (b) Number of species pairs predicted to consume a metabolite that was secreted by a different organism. Consumed and secreted metabolites decreased or increased by at least two-fold relative to the beginning of the experiment, respectively.    
+
+	 20	
+   
+ Appendix Figure S25. Table of inferred growth rates and interaction coefficients for the gLV model trained on T1 (M). Donor and recipient species are listed in rows and columns, respectively. µ represents monospecies growth rate.   
+ Appendix Figure S26. Table of inferred growth rates and interaction coefficients for the gLV model trained on T2 (M and PW1). Donor and recipient species are listed in rows and columns, respectively. µ represents monospecies growth rate.   
+ Appendix Figure S27. Table of inferred growth rates and interaction coefficients for the gLV model trained on T3 (M, PW1 and PW2). Donor and recipient species are listed in rows and columns, respectively. µ represents monospecies growth rate.   
+ 
+
+	 21	
+Appendix Figure S28. Table of inferred growth rates and interaction coefficients for the gLV model trained on T4 (M, PW1, PW2 and full community). Donor and recipient species are listed in rows and columns, respectively. µ represents monospecies growth rate.    REFERENCES Qin J, Li R, Raes J, Arumugam M, Burgdorf KS, Manichanh C, Nielsen T, Pons N, Levenez F, Yamada T, Mende DR, Li J, Xu J, Li S, Li D, Cao J, Wang B, Liang H, Zheng H, Xie Y, et al (2010) A human gut microbial gene catalogue established by metagenomic sequencing. Nature 464: 59–65  

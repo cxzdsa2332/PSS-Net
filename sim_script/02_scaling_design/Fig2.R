@@ -510,3 +510,9 @@ if (requireNamespace("patchwork", quietly = TRUE)) {
 }
 
 Fig2
+
+fig2_out <- file.path("manuscript", "figures", "Fig2.pdf")
+dir.create(dirname(fig2_out), recursive = TRUE, showWarnings = FALSE)
+if (!is.null(Fig2)) {
+  ggsave(fig2_out, Fig2, width = 210, height = 297, units = "mm")
+}

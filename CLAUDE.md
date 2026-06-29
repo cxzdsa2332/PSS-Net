@@ -119,7 +119,7 @@ PSS-Net/
   source nodes and within-group sparsity across basis functions.
 - Group lasso is a baseline comparator, not the default estimator.
 - Local effect signs should be interpreted through the Jacobian at an
-  unperturbed reference steady state.
+  analysis-specified reference state.
 
 ## Manuscript Conventions
 
@@ -132,6 +132,12 @@ PSS-Net/
 - Use `\citep` and `\citet` consistently with `natbib`.
 - For biological examples, italicize Latin species names and give abbreviations
   at first use.
+- After modifying any manuscript source (`manuscript/main.tex`,
+  `manuscript/preamble.tex`, `manuscript/sections/*.tex`, manuscript-specific
+  figures/tables, or `ref/references.bib` when used by the manuscript),
+  automatically invoke the `build-manuscript` skill and compile
+  `manuscript/main.pdf`. If compilation cannot run or fails for environment
+  reasons, report the exact command and blocker instead of silently skipping.
 - Target-journal formatting standard: follow the conventions of *Nature* (and
   Nature-family journals such as *Nature Communications* / *Nature Methods*) and
   of *Bioinformatics* (Oxford). When their conventions differ, default to the

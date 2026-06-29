@@ -1214,4 +1214,6 @@ if (requireNamespace("cowplot", quietly = TRUE)) {
 }
 
 # A4 portrait (210 x 297 mm).
-ggsave("Fig1.pdf", Fig1, width = 210, height = 297, units = "mm")
+fig1_out <- file.path("manuscript", "figures", "Fig1.pdf")
+dir.create(dirname(fig1_out), recursive = TRUE, showWarnings = FALSE)
+ggsave(fig1_out, Fig1, width = 210, height = 297, units = "mm")

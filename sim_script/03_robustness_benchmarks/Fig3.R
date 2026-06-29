@@ -733,7 +733,7 @@ Fig3c_compositional_data_limitation <- ggplot(
              aes(yintercept = oracle_mcc), inherit.aes = FALSE,
              linewidth = 0.3, linetype = "22", color = "grey45") +
   geom_col(width = 0.62, color = "grey30", linewidth = 0.25, show.legend = FALSE) +
-  geom_errorbar(aes(ymin = pmax(0, mean - sd), ymax = pmin(1, mean + sd)),
+  geom_errorbar(aes(ymin = pmax(-0.4, mean - sd), ymax = pmin(1, mean + sd)),
                 width = 0.16, linewidth = 0.35, color = "grey20") +
   geom_point(data = fig3c_metric_df,
              aes(x = input, y = value),
@@ -741,7 +741,7 @@ Fig3c_compositional_data_limitation <- ggplot(
              size = 1.25, alpha = 0.48, color = "grey15") +
   facet_wrap(~ metric, nrow = 1) +
   scale_x_discrete(labels = input_labels) +
-  scale_y_continuous(limits = c(0, 1), expand = expansion(mult = c(0.02, 0.05))) +
+  scale_y_continuous(limits = c(-0.4, 1), expand = expansion(mult = c(0.02, 0.05))) +
   scale_fill_manual(values = c(
     abs = "#2E6F9E",
     rel = "#B45F4D",
@@ -771,3 +771,22 @@ Fig3e_compositional_data_limitation <- Fig3c_compositional_data_limitation
 Fig3e <- Fig3e_compositional_data_limitation
 
 Fig3e
+
+## ------------------------------------------------------- assembled Figure 3 ----
+if (requireNamespace("patchwork", quietly = TRUE)) {
+  Fig3 <- (patchwork::wrap_elements(Fig3a) | patchwork::wrap_elements(Fig3b)) /
+    (patchwork::wrap_elements(Fig3c) | patchwork::wrap_elements(Fig3d)) /
+    patchwork::wrap_elements(Fig3e) +
+    patchwork::plot_layout(heights = c(0.8, 1.0, 0.75)) +
+    patchwork::plot_annotation(tag_levels = "a")
+} else {
+  Fig3 <- NULL
+}
+
+Fig3
+
+fig3_out <- file.path("manuscript", "figures", "Fig3.pdf")
+dir.create(dirname(fig3_out), recursive = TRUE, showWarnings = FALSE)
+if (!is.null(Fig3)) {
+  ggsave(fig3_out, Fig3, width = 210, height = 297, units = "mm")
+}
