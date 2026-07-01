@@ -1,17 +1,17 @@
 \section{Simulation Studies}
 \label{sec:simulation}
 
-We evaluate PSS-Net around three questions: whether perturbed steady states
-carry enough information to recover the directed sparse network and its
-univariate edge functions; how recovery scales with sample budget and
-perturbation design; and how PSS-Net compares with external
-network-reconstruction baselines across topologies and measurement scales.
+This section describes the simulation designs used to generate the results in
+\Cref{sec:results}.  The simulations are organized into three groups: foundation
+recovery experiments, perturbation-design experiments, and external benchmark
+and limitation experiments.
 
 \subsection{Setup}
 \label{sec:sim:setup}
 
-All experiments generate the full dynamical system but pass only the
-post-perturbation equilibrium pairs $(\tilde{\xv}^{(k)},\uv^{(k)})$ to inference.
+In all experiments, data are generated from the full dynamical system, but
+inference uses only the post-perturbation equilibrium pairs
+$(\tilde{\xv}^{(k)},\uv^{(k)})$.
 The main benchmark is the additive polynomial system
 \begin{equation}
   \frac{dx_j}{dt}
@@ -37,63 +37,69 @@ order, i.e.\ source-node groups $\{x_i,x_i^2\}$.  Support recovery is summarized
 by precision, recall, $F_1$, and Matthews correlation coefficient (MCC) on
 off-diagonal directed edges, threshold-free ranking by AUPRC and AUROC, and
 effect-strength recovery by coefficient/Jacobian error, sign accuracy, and
-edge-function NRMSE.  All results are averaged over 30 random seeds and shown as
-seed-level points with mean $\pm$ standard deviation.
+edge-function NRMSE.  Summary statistics are reported as mean $\pm$ standard
+deviation across 30 independent simulation replicates.
 
-\subsection{Foundation recovery}
+\subsection{Foundation recovery simulations}
 \label{sec:sim:foundation}
 
-The first group establishes what the estimator extracts from the data. We
-visualize that only the final steady state---not the differentiated
-trajectory---enters the regression, map the identifiability boundary at which
-quadratic effects become detectable as a function of signal-to-noise ratio, and
-compare \adsiht{} with group lasso under linear and nonlinear truth across
-problem sizes. A fitted nonlinear system is then decomposed into baseline,
-self-feedback, and received cross-node effects to confirm that selected edges
-also reconstruct the correct function shape and sign, not merely an edge score.
-A final library-misspecification experiment varies true (quadratic, saturating
-Monod-type, sinusoidal) against fitted (linear, polynomial, Monod-type,
-Fourier-type) dictionaries, separating support MCC---robust to moderate
-misspecification---from edge-function NRMSE, which depends on whether the fitted
-dictionary can represent the true shape.
+The foundation simulations use controlled systems in which the true support,
+local Jacobian signs, and edge functions are known.  We first simulate additive
+and gLV trajectories under a small set of perturbations and retain only their
+terminal equilibria as PSS observations.  We then perform an identifiability
+scan in which linear, gLV, and additive nonlinear steady-state mechanisms are
+fit with linear and quadratic libraries across signal-to-noise ratios.
 
-\subsection{Scaling and perturbation design}
+For the main estimator comparison, node-wise \adsiht{} and group lasso are fit
+to shared PSS data under linear and nonlinear truth.  The problem sizes are
+$p=8,30,100$, with in-degree $s=2,3,3$ respectively, and the sample budget is
+varied through $N/(s\log p)$.  Representative nonlinear fits are used to display
+effect decomposition, edge-function recovery, and the inferred directed signed
+network.  A separate basis-misspecification experiment crosses quadratic,
+saturating Monod-type, and sinusoidal truths with linear, polynomial,
+Monod-type, and Fourier-type fitted dictionaries.
+
+\subsection{Scaling and perturbation-design simulations}
 \label{sec:sim:design}
 
-The second group studies how the same estimator behaves as the number and
-placement of perturbations change. Sample complexity is organized by the
-rescaled budget $N/(s\log p)$ across a range of network sizes and sparsity
-levels. Perturbation designs then compare random, maximin, and D-optimal
-strategies, the last mapping candidate perturbations through the (known or
-locally linearized) steady-state response and selecting an exact subset with
+The perturbation-design simulations vary both the number and placement of input
+conditions.  Sample complexity is summarized by the rescaled budget
+$N/(s\log p)$ across multiple network sizes and sparsity levels.  Design
+comparisons include random sampling, maximin space-filling designs, oracle
+D-optimal designs, and pilot-estimated D-optimal designs.  The D-optimal designs
+map candidate perturbations through the known or locally linearized
+steady-state response and select an exact subset with
 \texttt{AlgDesign::optFederov()}
 \citep{wheeler2025algdesign,fedorov1972theory}; the D-optimal backend is a
-standard experimental-design tool, not a new inference algorithm. A two-stage
-variant replaces the known response map with one estimated from a shared pilot,
-comparing pilot-estimated D-optimal continuations against random, maximin, and
-oracle D-optimal. The intended reading is regime-dependent: designed inputs help
-most in nonlinear, low-budget settings, while at high budgets random
-perturbations approach the same performance.
+standard experimental-design tool, not a new inference algorithm.
 
-\subsection{External benchmarks, topology, and measurement limits}
+For the two-stage design experiment, all strategies share the same initial
+pilot perturbations, which count toward the total budget.  The pilot-estimated
+D-optimal design estimates a local response map from the pilot PSS observations
+and then augments the design using the same D-optimal backend.  The resulting
+designs are evaluated by running PSS-Net on the selected perturbation-response
+pairs and computing the same support-recovery metrics as above.
+
+\subsection{Benchmark, topology, and measurement-limit simulations}
 \label{sec:sim:benchmark}
 
-The third group places PSS-Net in a broader comparison. Against modular response
-analysis \citep[MRA;][]{kholodenko2002untangling} via the aiMeRA implementation
+The external benchmark compares PSS-Net with methods that differ in their input
+assumptions and output scales.  The benchmark includes modular response analysis
+\citep[MRA;][]{kholodenko2002untangling} via the aiMeRA implementation
 \citep{jimenezdominguez2021aimera}, sparse linear regression (lasso and elastic
 net through \texttt{glmnet}, \citealp{friedman2010glmnet}; group lasso,
 \citealp{lounici2011group}), PySINDy-STLSQ
 \citep{brunton2016sindy,kaptanoglu2022pysindy}, and association baselines
 (Pearson correlation and partial correlation through \texttt{ppcor},
-\citealp{kim2015ppcor}), PSS-Net matches the
-best methods on linear truth and retains a margin in MCC and AUPRC under strong
-nonlinearity, while uniquely providing absolute-scale Jacobian and
-function-recovery diagnostics; row-normalized scores are used where output
-scales differ. We test topology dependence by comparing node-wise and joint
-multi-task PSS-Net on scale-free versus Erd\H{o}s--R\'enyi graphs, reporting edge
-MCC, out-degree rank correlation, and hub hit rate, to assess whether pooling
-target equations helps recover hub-dominated structure. Finally, a compositional
-experiment contrasts absolute abundance (an oracle upper bound) with closed
-relative abundance, centered log-ratio, and noisy-total-corrected scales, to
-quantify the loss from closure and whether an external biomass measurement
-suffices to recover the absolute-scale steady-state equation.
+\citealp{kim2015ppcor}).  For methods with different natural score scales,
+row-normalized local-response scores are used in the MRA-style comparison, while
+threshold-free AUPRC and AUROC are computed from each method's continuous edge
+score.
+
+Topology dependence is evaluated by comparing node-wise and joint multi-task
+PSS-Net on scale-free and Erd\H{o}s--R\'enyi graphs.  The reported quantities are
+edge MCC, out-degree rank correlation, and hub hit rate.  Measurement-scale
+sensitivity is evaluated by fitting PSS-Net to four versions of the same
+underlying steady states: absolute abundance, closed relative abundance,
+centered log-ratio transformed abundance, and relative abundance multiplied by a
+noisy total-abundance measurement.
